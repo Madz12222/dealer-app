@@ -11,7 +11,6 @@ cffi==2.0.0
 charset-normalizer==3.4.7
 ckzg==2.1.7
 click==8.4.2
-cryptography @ file:///home/builder/.termux-build/python-cryptography/src
 crytic-compile==0.3.11
 cytoolz==1.1.0
 eth-account==0.13.7
@@ -46,7 +45,6 @@ oauthlib==3.3.1
 packaging==26.0
 parsimonious==0.10.0
 prettytable==3.17.0
-proot-distro @ file:///home/builder/.termux-build/proot-distro/src
 propcache==0.4.1
 proto-plus==1.28.3
 protobuf==7.36.0
