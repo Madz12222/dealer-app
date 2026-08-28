@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ghost-TW Broadcaster</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.ethers.io/lib/ethers-5.2.umd.min.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800;900&display=swap');
+        html, body { background-color: #0d0d0d; color: white; font-family: 'Inter', sans-serif; height: 100%; overflow: hidden; margin: 0; width: 100%; }
+        .text-trust-green { color: #2ebd85; }
+        .bg-trust-green { background-color: #2ebd85; }
+        .fixed-header { position: fixed; top: 0; left: 0; right: 0; background: #0d0d0d; z-index: 100; border-bottom: 1px solid #1a1a1a; }
+        .scrollable-content { position: absolute; top: 385px; bottom: 75px; left: 0; right: 0; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        .bottom-nav { position: fixed; bottom: 0; left: 0; right: 0; background: #0d0d0d; border-top: 1px solid #1a1a1a; height: 75px; z-index: 100; }
+        .spinner { border: 2px solid rgba(255,255,255,0.1); border-top: 2px solid #fff; border-radius: 50%; width: 16px; height: 16px; animation: spin 0.8s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div class="fixed-header">
+        <nav class="p-4 flex items-center justify-between">
+            <button onclick="toggleModal('settingsModal')" class="text-gray-400 active:opacity-50"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 00-1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/></svg></button>
+            <div class="flex-1 mx-4 bg-[#1a1a1a] flex items-center px-4 py-2 rounded-full gap-2 text-gray-400 font-semibold"><span class="text-sm">Search tokens</span></div>
+            <button class="text-gray-400"><svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-width="2" d="M12 4v16m8-8H4"/></svg></button>
+        </nav>
+        <div class="px-6 text-center">
+            <span class="bg-[#1e1e1e] px-2 py-0.5 rounded text-[10px] font-bold text-gray-500 uppercase tracking-widest">Main Wallet</span>
+            <h2 id="mainBalance" class="text-[40px] font-black tracking-tighter mt-1">₹0.00</h2>
+            <p id="mainPL" class="text-trust-green font-bold text-sm mt-0.5">▲ ₹0.00 (+0.00%)</p>
+        </div>
+        <div class="grid grid-cols-4 gap-2 px-8 my-6 text-center">
+            <div onclick="toggleModal('sendModal')" class="flex flex-col items-center gap-2"><div class="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center text-xl">↑</div><span class="text-[12px] font-bold">Send</span></div>
+            <div onclick="toggleModal('settingsModal')" class="flex flex-col items-center gap-2"><div class="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center text-xl">+</div><span class="text-[12px] font-bold">Fund</span></div>
+            <div class="opacity-20 flex flex-col items-center gap-2"><div class="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center text-xl">⇄</div><span class="text-[12px] font-bold">Swap</span></div>
+            <div class="opacity-20 flex flex-col items-center gap-2"><div class="w-14 h-14 bg-[#1a1a1a] rounded-full flex items-center justify-center text-xl">❑</div><span class="text-[12px] font-bold">Sell</span></div>
+        </div>
+        <div class="px-6 flex items-center justify-between pb-2">
+            <div class="flex gap-6"><span class="font-bold text-[17px] border-b-2 border-white pb-2">Crypto</span><span class="font-bold text-[17px] text-gray-500 pb-2">Watchlist</span></div>
+        </div>
+    </div>
+
+    <div id="assetList" class="scrollable-content"></div>
+
+    <div class="bottom-nav grid grid-cols-4 items-center text-center">
+        <div class="text-trust-green font-bold text-[10px] uppercase">Home</div>
+        <div class="text-gray-500 font-bold text-[10px] uppercase">Trending</div>
+        <div class="text-gray-500 font-bold text-[10px] uppercase">Trade</div>
+        <div class="text-gray-500 font-bold text-[10px] uppercase">Discover</div>
+    </div>
+
+    <div id="sendModal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-[200]">
+        <div class="bg-[#1a1a1a] w-full max-w-sm p-6 rounded-[32px] border border-white/10">
+            <h3 class="text-center font-bold mb-4 uppercase text-xs tracking-widest text-gray-400">Broadcaster Transfer</h3>
+            <input type="text" id="sendAddress" placeholder="Recipient Address" class="w-full bg-[#0d0d0d] p-4 rounded-2xl mb-4 outline-none font-bold text-sm">
+            <input type="text" id="sendTicker" placeholder="Ticker (e.g. USDT)" class="w-full bg-[#0d0d0d] p-4 rounded-2xl mb-4 outline-none font-bold uppercase">
+            <input type="number" id="sendQty" placeholder="Amount" class="w-full bg-[#0d0d0d] p-4 rounded-2xl mb-6 outline-none font-bold">
+            <button id="broadcastBtn" onclick="executeTransfer()" class="w-full bg-trust-green py-4 rounded-2xl text-black font-black uppercase">Execute Transfer</button>
+            <div id="txStatus" class="mt-4 text-[10px] font-mono text-center text-gray-500 hidden break-all"></div>
+            <button onclick="toggleModal('sendModal')" class="w-full mt-4 text-gray-500 text-xs font-bold uppercase">Cancel</button>
+        </div>
+    </div>
+
+    <div id="settingsModal" class="hidden fixed inset-0 bg-black/90 flex items-center justify-center p-6 z-[200]">
+        <div class="bg-[#1a1a1a] w-full max-w-sm p-6 rounded-[32px] border border-white/10 text-center">
+            <h3 class="font-bold mb-4 uppercase text-xs text-gray-400">Inject Asset</h3>
+            <input type="text" id="coinInput" placeholder="Coin ID (e.g. tether)" class="w-full bg-[#0d0d0d] p-4 rounded-2xl mb-4 outline-none font-bold">
+            <input type="number" id="coinQty" placeholder="Quantity" class="w-full bg-[#0d0d0d] p-4 rounded-2xl mb-6 outline-none font-bold">
+            <button onclick="injectAsset()" class="w-full bg-trust-green py-4 rounded-2xl text-black font-black uppercase">Add to Vault</button>
+            <button onclick="clearVault()" class="w-full mt-4 text-red-500 text-[10px] font-bold uppercase">Reset Wallet</button>
+            <button onclick="toggleModal('settingsModal')" class="w-full mt-2 text-gray-500 text-[10px] font-bold uppercase">Close</button>
+        </div>
+    </div>
+
+    <script>
+        let assets = JSON.parse(localStorage.getItem('ghost_vault')) || [];
+
+        function updateMainBalance() {
+            const total = assets.reduce((sum, a) => sum + (a.qty * a.price), 0);
+            document.getElementById('mainBalance').innerText = `₹${total.toLocaleString(undefined, {minimumFractionDigits: 2})}`;
+            // Simulating a 5.12% growth for visual P/L consistency
+            const plAmt = total * 0.0512;
+            document.getElementById('mainPL').innerText = `▲ ₹${plAmt.toLocaleString(undefined, {maximumFractionDigits:0})} (+5.12%)`;
+        }
+
+        async function injectAsset() {
+            const id = document.getElementById('coinInput').value.toLowerCase();
+            const qty = parseFloat(document.getElementById('coinQty').value) || 0;
+            try {
+                const res = await fetch(`https://api.coingecko.com/api/v3/coins/${id}`);
+                const data = await res.json();
+                const ticker = data.symbol.toUpperCase();
+                const idx = assets.findIndex(a => a.ticker === ticker);
+                if (idx > -1) assets[idx].qty += qty;
+                else assets.push({ ticker, qty, price: data.market_data.current_price.inr, logo: data.image.small });
+                saveAndRender();
+                toggleModal('settingsModal');
+            } catch (e) { alert("Coin not found"); }
+        }
+
+        async function executeTransfer() {
+            const btn = document.getElementById('broadcastBtn');
+            const ticker = document.getElementById('sendTicker').value.toUpperCase();
+            const qty = parseFloat(document.getElementById('sendQty').value);
+            
+            btn.innerHTML = '<div class="spinner"></div> BROADCASTING...';
+            
+            // Simulation of blockchain delay
+            setTimeout(() => {
+                const idx = assets.findIndex(a => a.ticker === ticker);
+                if (idx > -1 && assets[idx].qty >= qty) {
+                    assets[idx].qty -= qty;
+                    saveAndRender();
+                    btn.innerHTML = 'SUCCESS CONFIRMED';
+                    btn.classList.replace('bg-trust-green', 'bg-blue-600');
+                    setTimeout(() => { toggleModal('sendModal'); btn.innerHTML = 'Execute Transfer'; btn.classList.replace('bg-blue-600', 'bg-trust-green'); }, 2000);
+                } else {
+                    alert("Insufficient Balance");
+                    btn.innerHTML = 'Execute Transfer';
+                }
+            }, 1500);
+        }
+
+        function render() {
+            const list = document.getElementById('assetList');
+            list.innerHTML = assets.map(a => `
+                <div class="flex items-center justify-between p-4 border-b border-[#1a1a1a]">
+                    <div class="flex items-center gap-4">
+                        <img src="${a.logo}" class="w-11 h-11 rounded-full">
+                        <div><p class="font-bold text-lg leading-none">${a.ticker}</p><p class="text-gray-500 text-[11px] mt-1 font-bold">₹${a.price.toLocaleString()}</p></div>
+                    </div>
+                    <div class="text-right">
+                        <p class="font-bold text-lg">₹${(a.qty * a.price).toLocaleString()}</p>
+                        <p class="text-trust-green font-bold text-[11px]">▲ ${a.qty.toLocaleString()} ${a.ticker}</p>
+                    </div>
+                </div>`).join('');
+            updateMainBalance();
+        }
+
+        function saveAndRender() { localStorage.setItem('ghost_vault', JSON.stringify(assets)); render(); }
+        function toggleModal(id) { document.getElementById(id).classList.toggle('hidden'); }
+        function clearVault() { assets = []; saveAndRender(); }
+        render();
+    </script>
+</body>
+</html>

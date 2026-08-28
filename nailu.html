@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nailu Bank | Origin 4142</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --bg: #0b0e11; --card: #1e2329; --trust-blue: #3e91ff; --trust-green: #0ecb81; --gold: #f3ba2f; }
+        body { background: var(--bg); color: #eaecef; font-family: sans-serif; margin: 0; display: flex; justify-content: center; }
+        .phone { width: 375px; height: 812px; background: var(--bg); border: 10px solid #1e2329; border-radius: 45px; margin: 10px; position: relative; display: flex; flex-direction: column; overflow: hidden; }
+        .nailu-header { padding: 35px 20px 10px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #2b3139; }
+        .portfolio { text-align: center; padding: 25px 20px; background: linear-gradient(180deg, #161b22 0%, #0b0e11 100%); }
+        .total-amount { font-size: 34px; font-weight: 700; color: white; margin: 5px 0; }
+        .ledger { flex: 1; overflow-y: auto; padding-bottom: 100px; }
+        .row { padding: 18px 20px; display: flex; justify-content: space-between; border-bottom: 1px solid #1e2329; }
+        .icon { width: 42px; height: 42px; background: #2b3139; border-radius: 50%; display: flex; justify-content: center; align-items: center; font-weight: bold; }
+        .tag-real { font-size: 9px; background: var(--trust-green); color: black; padding: 2px 5px; border-radius: 3px; font-weight: 800; margin-left: 5px; }
+        .tag-ghost { font-size: 9px; border: 1px solid var(--trust-blue); color: var(--trust-blue); padding: 1px 4px; border-radius: 3px; margin-left: 5px; }
+        #broadcastPopup { 
+            display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); 
+            width: 280px; background: #1c2128; border-radius: 20px; padding: 20px; z-index: 1000; 
+            text-align: center; border: 1px solid #30363d; box-shadow: 0 10px 40px rgba(0,0,0,1);
+        }
+        .progress-box { width: 100%; background: #0b0e11; height: 10px; border-radius: 5px; margin: 15px 0; overflow: hidden; }
+        .p-bar { width: 0%; height: 100%; background: var(--trust-blue); transition: width 0.4s ease; }
+        .bsc-link { display: none; color: var(--trust-blue); text-decoration: none; font-size: 12px; font-weight: bold; margin-top: 10px; }
+        .ghost-btn { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: var(--trust-blue); color: white; border: none; padding: 15px 35px; border-radius: 100px; font-weight: 700; cursor: pointer; }
+        .overlay { position: absolute; bottom: 0; left: 0; right: 0; background: #1c2128; padding: 20px; border-radius: 20px 20px 0 0; transform: translateY(100%); transition: 0.4s; z-index: 100; }
+        .overlay.active { transform: translateY(0); }
+        input { width: 100%; background: #0d1117; border: 1px solid #30363d; padding: 12px; color: white; border-radius: 10px; margin-bottom: 10px; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+<div class="phone">
+    <div class="nailu-header">
+        <span style="color:var(--gold); font-weight:800; font-size:13px;">NAILU BANK | ORIGIN 4142</span>
+        <i class="fas fa-microchip" style="color:var(--gold)"></i>
+    </div>
+    <div class="portfolio">
+        <div style="color:#848e9c; font-size:11px;">TOTAL LIQUIDITY (INR)</div>
+        <div class="total-amount" id="grandTotal">₹0.00</div>
+    </div>
+    <div class="ledger" id="ledger">
+        <div class="row">
+            <div style="display:flex; align-items:center; gap:12px;">
+                <div class="icon" style="color:var(--gold)">BNB</div>
+                <div><div style="font-weight:600">Smart Chain <span class="tag-real">REAL</span></div><div style="font-size:11px; color:#848e9c;">₹58,680.10</div></div>
+            </div>
+            <div style="text-align:right"><div style="font-weight:700">1.45 BNB</div><div style="color:var(--trust-green); font-size:11px;">₹85,086.15</div></div>
+        </div>
+    </div>
+    <button class="ghost-btn" onclick="toggleOverlay()">+ GHOST PROTOCOL</button>
+    <div id="broadcastPopup">
+        <h3 id="statusMsg" style="margin:0; font-size:16px;">Initiating...</h3>
+        <div class="progress-box"><div id="pBar" class="p-bar"></div></div>
+        <a id="bscLink" class="bsc-link" target="_blank">VIEW ON BSCSCAN <i class="fas fa-external-link-alt"></i></a>
+        <button onclick="closePopup()" id="closeBtn" style="display:none; width:100%; margin-top:15px; padding:10px; background:#30363d; border:none; color:white; border-radius:8px;">Close</button>
+    </div>
+    <div class="overlay" id="overlay">
+        <h3 style="margin-top:0; color:var(--trust-blue); font-size:18px;">Inject Ghost Asset</h3>
+        <input type="text" id="sym" placeholder="Asset Symbol (USDT, WBNB...)">
+        <input type="number" id="qty" placeholder="Quantity">
+        <input type="text" id="rec" placeholder="Recipient Address (0x...577)">
+        <button onclick="startBroadcast()" style="width:100%; background:var(--trust-blue); color:white; border:none; padding:15px; border-radius:12px; font-weight:bold;">START BROADCAST</button>
+        <button onclick="toggleOverlay()" style="width:100%; background:transparent; border:none; color:#848e9c; margin-top:5px;">Cancel</button>
+    </div>
+</div>
+<script>
+    const rates = { "BNB": 58680.10, "USDT": 92.01, "WBNB": 58680.10, "BTC": 5642000 };
+    let totalInr = 85086.15;
+    document.getElementById('grandTotal').innerText = `₹${totalInr.toLocaleString('en-IN')}`;
+    function toggleOverlay() { document.getElementById('overlay').classList.toggle('active'); }
+    function startBroadcast() {
+        const sym = document.getElementById('sym').value.toUpperCase();
+        const qty = parseFloat(document.getElementById('qty').value);
+        const rec = document.getElementById('rec').value;
+        if(!sym || !qty || !rec) return;
+        toggleOverlay();
+        document.getElementById('broadcastPopup').style.display = 'block';
+        const pBar = document.getElementById('pBar');
+        const status = document.getElementById('statusMsg');
+        status.innerText = "Broadcasting Origin...";
+        pBar.style.width = "30%";
+        setTimeout(() => {
+            status.innerText = "Shattering Network Wall...";
+            pBar.style.width = "75%";
+            setTimeout(() => {
+                status.innerText = "Success! Landed in Target.";
+                pBar.style.width = "100%"; pBar.style.background = "#0ecb81";
+                const hash = "0x" + Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+                document.getElementById('bscLink').href = `https://bscscan.com/tx/${hash}`;
+                document.getElementById('bscLink').style.display = "block";
+                document.getElementById('closeBtn').style.display = "block";
+                const rate = rates[sym] || 100; const inrVal = qty * rate; totalInr += inrVal;
+                document.getElementById('grandTotal').innerText = `₹${totalInr.toLocaleString('en-IN', {minimumFractionDigits: 2})}`;
+                document.getElementById('ledger').insertAdjacentHTML('beforeend', `
+                    <div class="row">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div class="icon">${sym[0]}</div>
+                            <div><div style="font-weight:600">${sym} <span class="tag-ghost">GHOST</span></div><div style="font-size:11px; color:#848e9c;">Live: ₹${rate.toLocaleString()}</div></div>
+                        </div>
+                        <div style="text-align:right"><div style="font-weight:700">${qty.toLocaleString()} ${sym}</div><div style="color:var(--trust-green); font-size:11px;">₹${inrVal.toLocaleString('en-IN')}</div></div>
+                    </div>`);
+            }, 1500);
+        }, 1200);
+    }
+    function closePopup() {
+        document.getElementById('broadcastPopup').style.display = 'none';
+        document.getElementById('bscLink').style.display = 'none';
+        document.getElementById('closeBtn').style.display = 'none';
+        document.getElementById('pBar').style.width = "0%";
+        document.getElementById('pBar').style.background = "#3e91ff";
+    }
+</script>
+</body>
+</html>

