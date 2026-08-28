@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Dealer Dashboard - Cosmogems Club</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light p-3">
+<div class="container" style="max-width: 650px;">
+<div class="d-flex justify-content-between align-items-center mb-3">
+<h4 class="text-primary m-0">Cosmogems Club Portal 🚀</h4>
+<div class="d-flex gap-2">
+<a href="/admin/dashboard" class="btn btn-danger btn-sm fw-bold">👑 Admin Panel</a>
+<a href="/dealer/logout" class="btn btn-outline-danger btn-sm">Logout</a>
+</div>
+</div>
+
+<div class="card p-3 mb-3 shadow-sm bg-primary text-white">
+<h5>Welcome, Cosmogems Club Partner!</h5>
+<p class="mb-1">Mobile: <strong>{{ dealer.mobile }}</strong></p>
+<div class="d-flex justify-content-between align-items-center mt-2">
+<h3 class="m-0">Wallet: <span class="badge bg-warning text-dark">{{ dealer.credits }} Checks</span></h3>
+<button type="button" class="btn btn-light btn-sm fw-bold text-primary" data-bs-toggle="modal" data-bs-target="#rechargeModal">💳 Recharge ₹2,000</button>
+</div>
+</div>
+
+<div class="card p-3 mb-3 shadow-sm bg-white">
+<h5 class="text-secondary mb-3">Instant RC Lookup</h5>
+
+<div class="mb-3">
+<label class="form-label text-muted small fw-bold">Vehicle Registration Number</label>
+<input type="text" id="vehicle_number" class="form-control form-control-lg text-uppercase mb-2" placeholder="e.g. TN10BZ8419">
+<button type="button" class="btn btn-success w-100 py-2 fw-bold" onclick="fetchRC()">🔍 Check Vehicle (-1 Credit)</button>
+</div>
+
+<div id="resultBox" style="display:none;" class="border rounded p-3 bg-light mt-3">
+<ul class="list-group list-group-flush bg-transparent">
+<li class="list-group-item bg-transparent px-0 py-2">Owner: <strong id="res_owner"></strong></li>
+<li class="list-group-item bg-transparent px-0 py-2">Model: <strong id="res_type"></strong></li>
+<li class="list-group-item bg-transparent px-0 py-2">Mobile: <strong id="res_mob"></strong></li>
+<li class="list-group-item bg-transparent px-0 py-2">Address: <span id="res_addr" class="d-block text-dark mt-1" style="white-space: pre-wrap; word-break: break-word;"></span></li>
+<li class="list-group-item bg-transparent px-0 py-2">Chassis: <span id="res_chassis"></span></li>
+<li class="list-group-item bg-transparent px-0 py-2">Engine: <span id="res_engine"></span></li>
+<li class="list-group-item bg-transparent px-0 py-2">Insurance Upto: <span id="res_ins"></span></li>
+<li class="list-group-item bg-transparent px-0 py-2">RC Expiry: <span id="res_rc"></span></li>
+<li class="list-group-item bg-transparent px-0 py-2 border-0">Financer: <strong id="res_fin"></strong></li>
+</ul>
+</div>
+</div>
+
+<div class="card p-3 shadow-sm bg-white">
+<h6 class="text-secondary mb-2">Recent Searches & History</h6>
+<ul class="list-group list-group-flush small" id="historyList">
+{% for log in logs %}
+<li class="list-group-item d-flex justify-content-between align-items-center">
+<span><strong>{{ log.vehicle_number }}</strong> ({{ log.owner_name }})</span>
+<span class="text-muted">{{ log.search_date }}</span>
+</li>
+{% else %}
+<li class="list-group-item text-muted text-center" id="noSearchesMsg">No searches yet.</li>
+{% endfor %}
+</ul>
+</div>
+</div>
+
+<!-- Recharge Modal -->
+<div class="modal fade" id="rechargeModal" tabindex="-1">
+<div class="modal-dialog modal-dialog-centered">
+<div class="modal-content">
+<div class="modal-header">
+<h5 class="modal-title text-primary">Recharge Membership Wallet</h5>
+<button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+</div>
+<div class="modal-content p-3 text-center border-0">
+<p class="mb-2">Scan QR or pay via UPI to Top-Up <strong>15 Checks for ₹2,000</strong></p>
+<div class="p-3 bg-light border rounded mb-3 d-inline-block mx-auto">
+<h4 class="text-success fw-bold mb-1">UPI ID: madhansampath@kvb</h4>
+<small class="text-muted">Name: Cosmogems Pollution Center</small>
+</div>
+<p class="small text-muted mb-3">After payment, send your payment screenshot / UTR number to admin on WhatsApp to instantly credit your checks.</p>
+<a href="/dealer/whatsapp" target="_blank" class="btn btn-success fw-bold py-2">💬 Send Payment Proof on WhatsApp</a>
+</div>
+</div>
+</div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function fetchRC() {
+let vehNum = document.getElementById('vehicle_number').value.trim();
+if(!vehNum) {
+alert('Please enter vehicle number.');
+return;
+}
+
+fetch('/dealer/fetch_rc', {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ vehicle_number: vehNum })
+})
+.then(res => res.json())
+.then(data => {
+if(data.success) {
+document.getElementById('res_owner').innerText = data.owner;
+document.getElementById('res_type').innerText = data.vehicle_type;
+document.getElementById('res_mob').innerText = data.mobile_number;
+document.getElementById('res_addr').innerText = data.address;
+document.getElementById('res_chassis').innerText = data.chassis;
+document.getElementById('res_engine').innerText = data.engine;
+document.getElementById('res_ins').innerText = data.insurance_upto;
+document.getElementById('res_rc').innerText = data.rc_expiry;
+document.getElementById('res_fin').innerText = data.financer;
+document.getElementById('resultBox').style.display = 'block';
+
+let historyList = document.getElementById('historyList');
+let noMsg = document.getElementById('noSearchesMsg');
+if(noMsg) { noMsg.remove(); }
+
+let newItem = document.createElement('li');
+newItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+newItem.innerHTML = `<span><strong>${vehNum.toUpperCase()}</strong> (${data.owner})</span><span class="text-muted">Just now</span>`;
+historyList.prepend(newItem);
+
+} else {
+alert('Error: ' + data.error);
+}
+});
+}
+</script>
+</body>
+</html>

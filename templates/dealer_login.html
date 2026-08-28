@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Cosmogems Dealers Club Login</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light d-flex align-items-center justify-content-center" style="height: 100vh;">
+    <div class="card p-4 shadow-sm" style="max-width: 400px; width: 100%;">
+        <h3 class="text-center text-primary mb-3">Cosmogems Club</h3>
+        <p class="text-center text-muted small">Enter your mobile number to receive your WhatsApp OTP login.</p>
+        <form method="POST">
+            <div class="mb-3">
+                <label class="form-label fw-bold">Mobile Number:</label>
+                <input type="tel" name="mobile" class="form-control" placeholder="10-digit mobile number" required pattern="[0-9]{10}">
+            </div>
+            <button type="submit" class="btn btn-primary w-100 py-2 fw-bold">Send WhatsApp OTP</button>
+        </form>
+    </div>
+</body>
+</html>
