@@ -66,22 +66,18 @@ def fetch_rc_from_idspay(vehicle_number):
         if response.status_code == 200:
             res_json = response.json()
             
-            # Extract data container safely from IDSPay response
             data_node = res_json.get("data")
             if not data_node:
                 return {"error": "Invalid API Response", "message": res_json.get("message", "No data field found")}
             
-            # If inner data dictionary exists, flatten or extract fields directly from it
             actual_data = data_node.get("data", data_node)
             if not isinstance(actual_data, dict):
                 actual_data = {"response": str(actual_data)}
 
-            # Capture mobile number from outer or inner node if available
             mobile_no = data_node.get("mobileNo") or actual_data.get("mobileNo") or actual_data.get("mobileNumber")
             if mobile_no:
                 actual_data["mobileNumber"] = mobile_no
 
-            # Dynamically build clean dictionary keys straight from live API data
             cleaned_rc = {}
             for k, v in actual_data.items():
                 if k not in ["api_id", "api_key", "token_id"]:
@@ -190,16 +186,21 @@ DASHBOARD_TEMPLATE = '''
 
 <div id="recharge" style="background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:8px;">
 <h4 style="color:#856404; margin:0 0 10px 0; text-align:center;">Recharge Credits / Packages</h4>
-<div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:12px;">
-<div onclick="showBankDetails('₹2,000', '10 Credits')" style="flex:1; background:white; padding:12px; border-radius:5px; border:2px solid #ffc107; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-<b style="color:#333; font-size:16px;">₹2,000</b>
-<p style="margin:5px 0 0 0; color:#0056b3; font-weight:bold; font-size:13px;">10 Credits</p>
-<span style="font-size:10px; color:#666; display:block; margin-top:4px;">Click to Pay ➔</span>
+<div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:12px;">
+<div onclick="showBankDetails('₹300', '1 Credit')" style="flex:1; background:white; padding:10px; border-radius:5px; border:2px solid #17a2b8; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<b style="color:#333; font-size:14px;">₹300</b>
+<p style="margin:4px 0 0 0; color:#17a2b8; font-weight:bold; font-size:12px;">1 Credit</p>
+<span style="font-size:9px; color:#666; display:block; margin-top:3px;">Select ➔</span>
 </div>
-<div onclick="showBankDetails('₹5,000', '40 Credits')" style="flex:1; background:white; padding:12px; border-radius:5px; border:2px solid #28a745; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-<b style="color:#333; font-size:16px;">₹5,000</b>
-<p style="margin:5px 0 0 0; color:#28a745; font-weight:bold; font-size:13px;">40 Credits</p>
-<span style="font-size:10px; color:#666; display:block; margin-top:4px;">Click to Pay ➔</span>
+<div onclick="showBankDetails('₹2,000', '10 Credits')" style="flex:1; background:white; padding:10px; border-radius:5px; border:2px solid #ffc107; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<b style="color:#333; font-size:14px;">₹2,000</b>
+<p style="margin:4px 0 0 0; color:#0056b3; font-weight:bold; font-size:12px;">10 Credits</p>
+<span style="font-size:9px; color:#666; display:block; margin-top:3px;">Select ➔</span>
+</div>
+<div onclick="showBankDetails('₹5,000', '40 Credits')" style="flex:1; background:white; padding:10px; border-radius:5px; border:2px solid #28a745; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<b style="color:#333; font-size:14px;">₹5,000</b>
+<p style="margin:4px 0 0 0; color:#28a745; font-weight:bold; font-size:12px;">40 Credits</p>
+<span style="font-size:9px; color:#666; display:block; margin-top:3px;">Select ➔</span>
 </div>
 </div>
 
