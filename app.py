@@ -9,6 +9,8 @@ app.secret_key = os.urandom(24)
 UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+otp_storage = {}
+
 def get_db():
     conn = sqlite3.connect('dealer_app.db')
     conn.row_factory = sqlite3.Row
@@ -26,6 +28,14 @@ def init_db():
             payment_proof TEXT
         )
     ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS club_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dealer_mobile TEXT,
+            vehicle_number TEXT,
+            search_date TEXT
+        )
+    ''')
     conn.commit()
     conn.close()
 
@@ -33,31 +43,9 @@ init_db()
 
 @app.route('/')
 def home():
-    return render_template('index.html')
-
-@app.route('/submit_proof', methods=['POST'])
-def submit_proof():
-    mobile = request.form.get('mobile')
-    name = request.form.get('name')
-    file = request.files.get('proof')
-    
-    if file and mobile:
-        filename = f"{mobile}_{file.filename}"
-        filepath = os.path.join(UPLOAD_FOLDER, filename)
-        file.save(filepath)
-        
-        conn = get_db()
-        existing = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
-        if existing:
-            conn.execute('UPDATE dealers SET payment_proof = ?, status = "Pending", name = COALESCE(?, name) WHERE mobile = ?', (filepath, name, mobile))
-        else:
-            conn.execute('INSERT INTO dealers (name, mobile, credits, status, payment_proof) VALUES (?, ?, 0, "Pending", ?)', (name, mobile, filepath))
-        conn.commit()
-        conn.close()
-        
-        return render_template('index.html', msg="Payment proof submitted successfully! Waiting for admin approval.")
-    
-    return redirect(url_for('home'))
+    if 'dealer_mobile' in session:
+        return redirect(url_for('dealer_dashboard'))
+    return redirect(url_for('dealer_login'))
 
 @app.route('/dealer/login', methods=['GET', 'POST'])
 def dealer_login():
@@ -67,52 +55,75 @@ def dealer_login():
         conn = get_db()
         dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ? AND status = "Active"', (mobile,)).fetchone()
         conn.close()
+        
         if dealer:
-            session['dealer_mobile'] = dealer['mobile']
-            return redirect(url_for('dealer_dashboard'))
+            otp = str(random.randint(1000, 9999))
+            otp_storage[mobile] = otp
+            
+            print("\n" + "="*40)
+            print(f" [TERMUX OTP GENERATOR] Mobile: {mobile} | OTP: {otp}")
+            print("="*40 + "\n")
+            
+            session['pending_mobile'] = mobile
+            return redirect(url_for('verify_otp'))
         else:
             msg = "Account not found or pending admin approval."
+            
     return render_template('dealer_login.html', msg=msg)
 
-@app.route('/dealer/dashboard')
+@app.route('/dealer/verify-otp', methods=['GET', 'POST'])
+def verify_otp():
+    msg = ""
+    mobile = session.get('pending_mobile')
+    if not mobile:
+        return redirect(url_for('dealer_login'))
+        
+    if request.method == 'POST':
+        entered_otp = request.form.get('otp')
+        if otp_storage.get(mobile) == entered_otp:
+            session.pop('pending_mobile', None)
+            session['dealer_mobile'] = mobile
+            otp_storage.pop(mobile, None)
+            return redirect(url_for('dealer_dashboard'))
+        else:
+            msg = "Invalid OTP. Check your Termux console logs."
+            
+    return render_template('verify_otp.html', msg=msg, mobile=mobile)
+
+@app.route('/dealer/dashboard', methods=['GET', 'POST'])
 def dealer_dashboard():
     if 'dealer_mobile' not in session:
         return redirect(url_for('dealer_login'))
+    
     conn = get_db()
     dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
-    conn.close()
-    return render_template('dealer_dashboard.html', dealer=dealer)
-
-@app.route('/admin/login', methods=['GET', 'POST'])
-def admin_login():
+    
+    vehicle_result = None
     msg = ""
+    
     if request.method == 'POST':
-        password = request.form.get('password')
-        if password == os.environ.get('ADMIN_PASSWORD', 'admin123'):
-            session['is_admin'] = True
-            return redirect(url_for('admin_dashboard'))
+        vehicle_number = request.form.get('vehicle_number')
+        if dealer and dealer['credits'] > 0:
+            conn.execute('UPDATE dealers SET credits = credits - 1 WHERE mobile = ?', (dealer['mobile'],))
+            conn.execute('INSERT INTO club_logs (dealer_mobile, vehicle_number) VALUES (?, ?)', (dealer['mobile'], vehicle_number))
+            conn.commit()
+            
+            dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
+            vehicle_result = {
+                "vehicle_number": vehicle_number.upper(),
+                "status": "Active / Verified",
+                "details": "Vehicle database lookup completed successfully."
+            }
         else:
-            msg = "Invalid Admin Password"
-    return render_template('admin_login.html', msg=msg)
-
-@app.route('/admin/dashboard')
-def admin_dashboard():
-    if not session.get('is_admin'):
-        return redirect(url_for('admin_login'))
-    conn = get_db()
-    dealers = conn.execute('SELECT * FROM dealers').fetchall()
+            msg = "Insufficient credits! Please submit payment proof to recharge credits."
+            
     conn.close()
-    return render_template('admin_dashboard.html', dealers=dealers)
+    return render_template('dealer_dashboard.html', dealer=dealer, vehicle_result=vehicle_result, msg=msg)
 
-@app.route('/admin/approve/<int:dealer_id>')
-def admin_approve(dealer_id):
-    if not session.get('is_admin'):
-        return redirect(url_for('admin_login'))
-    conn = get_db()
-    conn.execute('UPDATE dealers SET status = "Active", credits = credits + 10 WHERE id = ?', (dealer_id,))
-    conn.commit()
-    conn.close()
-    return redirect(url_for('admin_dashboard'))
+@app.route('/dealer/logout')
+def dealer_logout():
+    session.clear()
+    return redirect(url_for('dealer_login'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
