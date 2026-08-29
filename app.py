@@ -5,12 +5,17 @@ import os
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
+# In-memory user database simulation: { mobile: { "credits": int, "role": "user"/"admin" } }
 USERS = {
-    "8122252222": {"credits": 5, "role": "admin"},
+    "8122252222": {"credits": 5, "role": "admin"}, # Replace with your admin number
 }
 
+# Dummy OTP storage for mobile verification login simulation
 OTP_STORAGE = {}
 
+# ----------------- HTML & CSS TEMPLATES -----------------
+
+# Base layout including mobile-responsive CSS and the global site title
 BASE_LAYOUT = """
 <!DOCTYPE html>
 <html lang="en">
@@ -25,7 +30,7 @@ BASE_LAYOUT = """
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            overflow-x: hidden;
+            overflow-x: hidden; /* Prevent horizontal scroll on body */
         }
         .container {
             width: 100%;
@@ -37,6 +42,7 @@ BASE_LAYOUT = """
             box-shadow: 0 4px 12px rgba(0,0,0,0.08);
             box-sizing: border-box;
         }
+        /* Mobile adjustments */
         @media(max-width: 600px) {
             .container {
                 margin: 0;
@@ -57,10 +63,13 @@ BASE_LAYOUT = """
             text-decoration: none;
             display: inline-block;
             text-align: center;
+            transition: background-color 0.2s;
         }
+        .btn:hover { opacity: 0.9; }
         .btn-primary { background-color: #007bff; }
         .btn-danger { background-color: #dc3545; }
         .btn-warning { background-color: #ffc107; color: #000; }
+        
         input[type="text"], input[type="number"] {
             width: 100%;
             padding: 10px;
@@ -70,27 +79,30 @@ BASE_LAYOUT = """
             box-sizing: border-box;
             font-size: 15px;
         }
+        /* CRITICAL FIX: Wrapper to make long tables scrollable on mobile */
         .table-responsive {
             width: 100%;
             overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
             margin-top: 15px;
             border-radius: 8px;
             background: #fff;
+            box-shadow: inset 0 0 3px rgba(0,0,0,0.05);
         }
         table {
             width: 100%;
             font-size: 13px;
             color: #333;
             border-collapse: collapse;
-            white-space: nowrap;
+            white-space: nowrap; /* Keep content on one line to enable horizontal scroll */
         }
         th, td {
             padding: 10px 12px;
             text-align: left;
             border-bottom: 1px solid #e0e0e0;
         }
-        th { background-color: #f8f9fa; }
+        th { background-color: #f8f9fa; font-weight: bold; }
+        tr:last-child td { border-bottom: none; }
     </style>
 </head>
 <body>
@@ -101,6 +113,7 @@ BASE_LAYOUT = """
 </html>
 """
 
+# Login page content
 LOGIN_CONTENT = """
 <h2 style="text-align: center; color: #333;">Madzinu Dealers Club</h2>
 <p style="text-align: center; color: #666; font-size: 13px; margin-top: -5px;">Dealer Portal Login</p>
@@ -123,6 +136,7 @@ LOGIN_CONTENT = """
 {% endif %}
 """
 
+# Main dashboard content (with new ₹300 box and responsive table wrapper)
 DASHBOARD_CONTENT = """
 <div style="background: #007bff; color: white; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
@@ -150,27 +164,27 @@ DASHBOARD_CONTENT = """
     </form>
 </div>
 
-<!-- Recharge Packages Section -->
+<!-- Recharge Packages Section: NEW ₹300 box added -->
 <div style="margin-top: 20px; background: #fffdf5; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px;">
     <h3 style="margin-top: 0; color: #856404; font-size: 16px; text-align: center;">Recharge Credits / Packages</h3>
     <div style="display: flex; gap: 6px; justify-content: space-between; margin-top: 12px;">
         
-        <!-- ₹300 Package -->
-        <div onclick="window.location.href='/pay?amount=300'" style="border: 2px solid #007bff; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
+        <!-- NEW ₹300 Package (1 Credit) -->
+        <div onclick="window.location.href='/pay?amount=300'" style="border: 2px solid #007bff; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0px)'">
             <div style="font-size: 14px; font-weight: bold; color: #007bff;">₹300</div>
             <div style="font-size: 11px; color: #333; font-weight: bold; margin-top: 2px;">1 Credit</div>
             <div style="font-size: 9px; color: #555; margin-top: 2px;">Single Check &rarr;</div>
         </div>
 
-        <!-- ₹2,000 Package -->
-        <div onclick="window.location.href='/pay?amount=2000'" style="border: 2px solid #ffc107; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
+        <!-- ₹2,000 Package (10 Credits) -->
+        <div onclick="window.location.href='/pay?amount=2000'" style="border: 2px solid #ffc107; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0px)'">
             <div style="font-size: 14px; font-weight: bold; color: #d39e00;">₹2,000</div>
             <div style="font-size: 11px; color: #333; font-weight: bold; margin-top: 2px;">10 Credits</div>
             <div style="font-size: 9px; color: #555; margin-top: 2px;">Click to Pay &rarr;</div>
         </div>
 
-        <!-- ₹5,000 Package -->
-        <div onclick="window.location.href='/pay?amount=5000'" style="border: 2px solid #28a745; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
+        <!-- ₹5,000 Package (40 Credits) -->
+        <div onclick="window.location.href='/pay?amount=5000'" style="border: 2px solid #28a745; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box; transition: transform 0.2s;" onmouseover="this.style.transform='translateY(-3px)'" onmouseout="this.style.transform='translateY(0px)'">
             <div style="font-size: 14px; font-weight: bold; color: #28a745;">₹5,000</div>
             <div style="font-size: 11px; color: #333; font-weight: bold; margin-top: 2px;">40 Credits</div>
             <div style="font-size: 9px; color: #555; margin-top: 2px;">Click to Pay &rarr;</div>
@@ -186,6 +200,7 @@ DASHBOARD_CONTENT = """
 {% if result %}
 <div style="margin-top: 20px; background: #e2f0d9; border: 1px solid #c3e6cb; padding: 15px; border-radius: 8px;">
     <h4 style="margin-top: 0; color: #155724;">RC Verification Result</h4>
+    <!-- TABLE WRAPPER FOR RESPONSIVENESS -->
     <div class="table-responsive">
         <table>
             {% for key, value in result.items() %}
@@ -200,6 +215,7 @@ DASHBOARD_CONTENT = """
 {% endif %}
 """
 
+# Admin page content
 ADMIN_CONTENT = """
 <h2>Admin Panel - Madzinu Dealers Club</h2>
 <p><a href="/dashboard" class="btn btn-primary" style="margin-bottom: 15px;">&larr; Back to Dashboard</a></p>
@@ -222,8 +238,11 @@ ADMIN_CONTENT = """
 </div>
 """
 
+# ----------------- FLASK ROUTES -----------------
+
 @app.route("/", methods=["GET", "POST"])
 def login():
+    # Redirect to dashboard if already logged in
     if "mobile" in session:
         return redirect(url_for("dashboard"))
     
@@ -233,107 +252,47 @@ def login():
 
     if request.method == "POST":
         if "otp" not in request.form:
+            # Step 1: User entered mobile number, request OTP
             if mobile and len(mobile) == 10:
+                # Generate dummy 4-digit OTP
                 generated_otp = str(random.randint(1000, 9999))
                 OTP_STORAGE[mobile] = generated_otp
-                print(f"DEBUG OTP for {mobile}: {generated_otp}")
+                print(f"DEBUG OTP for {mobile}: {generated_otp}") # Console log for testing
                 step = "otp"
             else:
                 error = "Please enter a valid 10-digit mobile number."
         else:
+            # Step 2: User entered OTP, verify it
             entered_otp = request.form.get("otp")
             if mobile in OTP_STORAGE and OTP_STORAGE[mobile] == entered_otp:
+                # Login successful, set session
                 session["mobile"] = mobile
+                # If first time logging in, create user account with 2 trial checks
                 if mobile not in USERS:
                     USERS[mobile] = {"credits": 2, "role": "user"}
                 return redirect(url_for("dashboard"))
             else:
                 error = "Invalid OTP. Please try again."
-                step = "otp"
+                step = "otp" # Stay on OTP verification step
 
+    # Render login content inside the base layout
     rendered_content = render_template_string(LOGIN_CONTENT, error=error, step=step, mobile=mobile)
     return render_template_string(BASE_LAYOUT, content=rendered_content)
 
 @app.route("/dashboard")
 def dashboard():
+    # Protect dashboard route
     if "mobile" not in session:
         return redirect(url_for("login"))
     
     mobile = session["mobile"]
     user_data = USERS.get(mobile, {"credits": 0, "role": "user"})
     
+    # Render dashboard content inside the base layout
     rendered_content = render_template_string(
         DASHBOARD_CONTENT, 
         credits=user_data["credits"], 
         role=user_data["role"], 
         mobile=mobile,
-        result=session.pop("last_result", None),
-        error=session.pop("lookup_error", None)
-    )
-    return render_template_string(BASE_LAYOUT, content=rendered_content)
-
-@app.route("/lookup", methods=["POST"])
-def lookup():
-    if "mobile" not in session:
-        return redirect(url_for("login"))
-    
-    mobile = session["mobile"]
-    user_data = USERS.get(mobile, {"credits": 0, "role": "user"})
-    
-    if user_data["credits"] <= 0 and user_data["role"] != "admin":
-        session["lookup_error"] = "Insufficient credits! Please recharge your wallet."
-        return redirect(url_for("dashboard"))
-
-    reg_no = request.form.get("reg_no", "").strip().upper()
-    
-    if user_data["role"] != "admin":
-        USERS[mobile]["credits"] -= 1
-
-    try:
-        mock_rc_data = {
-            "RegNo": reg_no,
-            "VehicleClass": "Motor Car(LMV)",
-            "Model": "BREZZA LXI",
-            "VehicleColour": "EXUBERANT BLUE",
-            "FuelType": "PETROL",
-            "OwnerName": "DEALER VEHICLE USER",
-            "Status": "ACTIVE"
-        }
-        session["last_result"] = mock_rc_data
-    except Exception as e:
-        session["lookup_error"] = f"API error: {str(e)}"
-
-    return redirect(url_for("dashboard"))
-
-@app.route("/pay")
-def pay():
-    if "mobile" not in session:
-        return redirect(url_for("login"))
-    
-    amount = request.args.get("amount")
-    mobile = session["mobile"]
-    
-    if amount == "300":
-        USERS[mobile]["credits"] += 1
-    elif amount == "2000":
-        USERS[mobile]["credits"] += 10
-    elif amount == "5000":
-        USERS[mobile]["credits"] += 40
-        
-    return redirect(url_for("dashboard"))
-
-@app.route("/admin")
-def admin():
-    if "mobile" not in session or USERS.get(session["mobile"], {}).get("role") != "admin":
-        return redirect(url_for("dashboard"))
-    
-    rendered_content = render_template_string(ADMIN_CONTENT, users=USERS)
-    return render_template_string(BASE_LAYOUT, content=rendered_content)
-
-@app.route("/logout")
-def logout():
-    session.clear()
-    return redirect(url_for("login"))
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=10000, debug=True)
+        result=session.pop("last_result", None), # Display result if available
+        error=session.pop("lookup_error", None)  
