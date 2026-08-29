@@ -69,15 +69,14 @@ def fetch_rc_from_idspay(vehicle_number):
                 return data_block
         return {
             "regNo": vehicle_number.upper(),
-            "owner": "N/A",
-            "model": "Failed to fetch from IDSPay",
+            "error": "Failed to fetch from IDSPay",
             "message": response.text
         }
     except Exception as e:
         return {
             "regNo": vehicle_number.upper(),
-            "owner": "Connection Error",
-            "model": str(e)
+            "error": "Connection Error",
+            "details": str(e)
         }
 
 LOGIN_TEMPLATE = '''
@@ -129,7 +128,7 @@ DASHBOARD_TEMPLATE = '''
             <div style="font-size:12px; opacity:0.9;">WALLET</div>
             <div style="font-size:20px; font-weight:bold;">{{ dealer.credits }} Checks</div>
         </div>
-        <a href="#recharge" style="background:#ffc107; color:#000; padding:8px 15px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Recharge ₹2,000</a>
+        <a href="#recharge" style="background:#ffc107; color:#000; padding:8px 15px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Recharge</a>
         <a href="/dealer/logout" style="color:white; text-decoration:none; font-size:13px; margin-left:10px;">Logout</a>
     </div>
 
@@ -147,37 +146,63 @@ DASHBOARD_TEMPLATE = '''
     </div>
 
     {% if rc_data %}
-    <div style="background:#fff; border:1px solid #dee2e6; padding:15px; border-radius:8px; margin-bottom:20px; box-shadow:0 2px 5px rgba(0,0,0,0.05);">
-        <div style="font-size:14px; line-height:1.6; color:#222;">
-            <p style="margin:6px 0;"><b>Owner:</b> {{ rc_data.get('owner', 'N/A') }}</p>
-            <p style="margin:6px 0;"><b>Model:</b> {{ rc_data.get('vehicleManufacturerName', '') }} {{ rc_data.get('model', 'N/A') }}</p>
-            <p style="margin:6px 0;"><b>Mobile:</b> <span style="color:#0d6efd; font-weight:bold;">{{ rc_data.get('mobileNumber') or rc_data.get('mobile_number') or rc_data.get('ownerMobile') or 'Not Available in RTO' }}</span></p>
-            <p style="margin:6px 0;"><b>Address:</b> {{ rc_data.get('presentAddress') or rc_data.get('permanentAddress') or 'N/A' }}</p>
-            <p style="margin:6px 0;"><b>Chassis:</b> {{ rc_data.get('chassis', 'N/A') }} | <b>Engine:</b> {{ rc_data.get('engine', 'N/A') }}</p>
-            <p style="margin:6px 0;"><b>Insurance Upto:</b> {{ rc_data.get('vehicleInsuranceUpto', 'N/A') }} | <b>RC Expiry:</b> {{ rc_data.get('rcExpiryDate', 'N/A') }}</p>
-            <p style="margin:6px 0;"><b>Financier:</b> {{ rc_data.get('rcFinancier', 'N/A') }}</p>
-            <p style="margin:6px 0;"><b>Fuel Type:</b> {{ rc_data.get('type', 'N/A') }} | <b>Status:</b> <span style="color:green; font-weight:bold;">{{ rc_data.get('status', 'ACTIVE') }}</span></p>
-        </div>
+    <div style="background:#e8f4fd; border:1px solid #b8daff; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <h4 style="margin:0 0 10px 0; color:#004085; border-bottom:1px solid #b8daff; padding-bottom:5px;">Full RC Details (IDSPay)</h4>
+        <table style="width:100%; font-size:13px; color:#333; border-collapse:collapse;">
+            {% for key, value in rc_data.items() %}
+            <tr style="border-bottom:1px solid #d0e1fd;">
+                <td style="padding:6px 0; font-weight:bold; text-transform:capitalize; width:45%;">{{ key.replace('_', ' ') }}</td>
+                <td style="padding:6px 0; text-align:right;">{{ value if value is not none else 'N/A' }}</td>
+            </tr>
+            {% endfor %}
+        </table>
     </div>
     {% endif %}
 
     <div id="recharge" style="background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:8px;">
         <h4 style="color:#856404; margin:0 0 10px 0; text-align:center;">Recharge Credits / Packages</h4>
         <div style="display:flex; justify-content:space-between; gap:10px; margin-bottom:12px;">
-            <div style="flex:1; background:white; padding:10px; border-radius:5px; border:1px solid #ddd; text-align:center;">
-                <b style="color:#333; font-size:15px;">₹2,000</b>
-                <p style="margin:5px 0; color:#0056b3; font-weight:bold; font-size:13px;">10 Credits</p>
+            <div onclick="showBankDetails('₹2,000', '10 Credits')" style="flex:1; background:white; padding:12px; border-radius:5px; border:2px solid #ffc107; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <b style="color:#333; font-size:16px;">₹2,000</b>
+                <p style="margin:5px 0 0 0; color:#0056b3; font-weight:bold; font-size:13px;">10 Credits</p>
+                <span style="font-size:10px; color:#666; display:block; margin-top:4px;">Click to Pay ➔</span>
             </div>
-            <div style="flex:1; background:white; padding:10px; border-radius:5px; border:1px solid #ddd; text-align:center;">
-                <b style="color:#333; font-size:15px;">₹5,000</b>
-                <p style="margin:5px 0; color:#28a745; font-weight:bold; font-size:13px;">40 Credits</p>
+            <div onclick="showBankDetails('₹5,000', '40 Credits')" style="flex:1; background:white; padding:12px; border-radius:5px; border:2px solid #28a745; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+                <b style="color:#333; font-size:16px;">₹5,000</b>
+                <p style="margin:5px 0 0 0; color:#28a745; font-weight:bold; font-size:13px;">40 Credits</p>
+                <span style="font-size:10px; color:#666; display:block; margin-top:4px;">Click to Pay ➔</span>
             </div>
         </div>
-        <p style="color:#856404; font-size:11px; text-align:center; margin:0 0 10px 0;">Transfer payment via UPI and send screenshot proof on WhatsApp.</p>
-        <a href="https://wa.me/?text=Hello%20Admin,%20I%20have%20completed%20the%20payment%20recharge.%20Dealer%20Mobile:%20{{ dealer.mobile }}" target="_blank" style="display:block; text-align:center; background:#28a745; color:white; padding:10px; text-decoration:none; border-radius:5px; font-weight:bold; font-size:14px;">Send Payment Proof on WhatsApp</a>
+
+        <!-- Bank Details Box (Hidden by default, shown on package click) -->
+        <div id="bankDetailsBox" style="display:none; background:white; border:2px dashed #0d6efd; padding:12px; border-radius:6px; margin-top:10px; text-align:center;">
+            <h5 id="selectedPackageTitle" style="margin:0 0 5px 0; color:#0d6efd; font-size:15px;"></h5>
+            <p style="margin:4px 0; font-size:13px; color:#333;"><b>UPI ID / VPA:</b> <span id="upiIdText" style="color:#d63384; font-family:monospace; font-size:15px; font-weight:bold;">madhansampath@kvb</span></p>
+            <p style="margin:4px 0; font-size:12px; color:#555;"><b>Beneficiary Name:</b> Madhan Sampath</p>
+            <p style="margin:8px 0 10px 0; font-size:11px; color:#666;">Transfer payment using any UPI app, then click below to send screenshot proof on WhatsApp.</p>
+            <a id="whatsappBtn" href="#" target="_blank" style="display:block; text-align:center; background:#28a745; color:white; padding:8px; text-decoration:none; border-radius:5px; font-weight:bold; font-size:13px;">📲 Send Payment Proof on WhatsApp</a>
+        </div>
     </div>
 
 </div>
+
+<script>
+function showBankDetails(amount, credits) {
+    var box = document.getElementById('bankDetailsBox');
+    var title = document.getElementById('selectedPackageTitle');
+    var whatsappBtn = document.getElementById('whatsappBtn');
+    
+    title.innerText = "Selected: " + amount + " (" + credits + ")";
+    box.style.display = 'block';
+    
+    var dealerMobile = "{{ dealer.mobile }}";
+    var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + ". UPI ID: madhansampath@kvb. Dealer Mobile: " + dealerMobile;
+    whatsappBtn.href = "https://wa.me/?text=" + encodeURIComponent(msg);
+    
+    box.scrollIntoView({ behavior: 'smooth' });
+}
+</script>
+
 </body>
 </html>
 '''
