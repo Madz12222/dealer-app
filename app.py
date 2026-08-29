@@ -11,7 +11,12 @@ UPLOAD_FOLDER = 'static/uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
 otp_storage = {}
-IDSPAY_API_KEY = os.environ.get('IDSPAY_API_KEY', 'YOUR_IDSPAY_API_KEY')
+
+# IDSPay Production Credentials & Endpoint
+IDSPAY_URL = "https://javabackend.idspay.in/api/v1/prod/Rc-Premium-v2-verify"
+API_ID = "APID3192"
+API_KEY = "99310f2f-6808-4da5-be3e-84143ed8228d"
+TOKEN_ID = "9PCAflhNoBWFLnUEQuicQuYkkn2ZANd4"
 
 def get_db():
     conn = sqlite3.connect('dealer_app.db')
@@ -25,7 +30,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             mobile TEXT UNIQUE,
-            credits INTEGER DEFAULT 1,
+            credits INTEGER DEFAULT 5,
             status TEXT DEFAULT 'Active',
             payment_proof TEXT
         )
@@ -44,37 +49,33 @@ def init_db():
 init_db()
 
 def fetch_rc_from_idspay(vehicle_number):
-    url = "https://api.idspay.in/v3/vehicle/rc-verification"
     headers = {
-        "Authorization": f"Bearer {IDSPAY_API_KEY}",
         "Content-Type": "application/json"
     }
     payload = {
-        "rc_number": vehicle_number.upper().strip()
+        "api_id": API_ID,
+        "api_key": API_KEY,
+        "token_id": TOKEN_ID,
+        "vehicle_num": vehicle_number.upper().strip()
     }
     try:
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
+        response = requests.post(IDSPAY_URL, json=payload, headers=headers, timeout=15)
         if response.status_code == 200:
             res_json = response.json()
-            if res_json.get("status") == "SUCCESS" or "data" in res_json:
-                return res_json.get("data", res_json)
+            if res_json.get("status", {}).get("code") == 200 or "data" in res_json:
+                data_block = res_json.get("data", {})
+                if isinstance(data_block, dict) and "data" in data_block:
+                    return data_block.get("data")
+                return data_block
         return {
             "rc_number": vehicle_number.upper(),
-            "owner_name": "Sample Owner Name",
-            "maker_model": "Sample Vehicle Model",
-            "fuel_type": "Petrol",
-            "reg_date": "15-Jan-2023",
-            "fitness_upto": "14-Jan-2038",
-            "insurance_upto": "10-Aug-2027",
-            "rc_status": "Active / Verified",
-            "rto": "Regional Transport Office",
-            "financer": "N/A (Unfinanced)"
+            "error": "Failed to fetch from IDSPay",
+            "message": response.text
         }
     except Exception as e:
         return {
             "rc_number": vehicle_number.upper(),
-            "owner_name": "Error fetching from IDSPay",
-            "rc_status": "Connection Error",
+            "owner_name": "Connection Error",
             "details": str(e)
         }
 
@@ -186,14 +187,13 @@ def dealer_login():
             dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
             
             if not dealer:
-                conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, 1, "Active")', (mobile, 'Dealer'))
+                conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, 5, "Active")', (mobile, 'Dealer'))
             else:
                 conn.execute('UPDATE dealers SET status = "Active" WHERE mobile = ?', (mobile,))
                 
             conn.commit()
             conn.close()
             
-            # Generate a fresh random 4-digit OTP for this specific mobile number
             otp = str(random.randint(1000, 9999))
             otp_storage[mobile] = otp
             
