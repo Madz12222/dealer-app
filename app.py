@@ -118,8 +118,10 @@ LOGIN_CONTENT = """
     <button type="submit" class="btn btn-primary" style="width: 100%;">Get OTP</button>
     {% endif %}
 </form>
-{% if step == 'otp' %}
-<div style="margin-top: 10px; font-size: 13px; color: #666; text-align: center;">Demo OTP sent to console/session.</div>
+{% if step == 'otp' and display_otp %}
+<div style="margin-top: 15px; background: #e2f0d9; border: 1px solid #c3e6cb; color: #155724; padding: 12px; border-radius: 6px; text-align: center; font-size: 15px; font-weight: bold;">
+    🔑 Your OTP is: {{ display_otp }}
+</div>
 {% endif %}
 """
 
@@ -230,14 +232,15 @@ def login():
     error = None
     step = "mobile"
     mobile = request.form.get("mobile")
+    display_otp = None
 
     if request.method == "POST":
         if "otp" not in request.form:
             if mobile and len(mobile) == 10:
                 generated_otp = str(random.randint(1000, 9999))
                 OTP_STORAGE[mobile] = generated_otp
-                print(f"DEBUG OTP for {mobile}: {generated_otp}")
                 step = "otp"
+                display_otp = generated_otp
             else:
                 error = "Please enter a valid 10-digit mobile number."
         else:
@@ -250,8 +253,9 @@ def login():
             else:
                 error = "Invalid OTP. Please try again."
                 step = "otp"
+                display_otp = OTP_STORAGE.get(mobile)
 
-    rendered_content = render_template_string(LOGIN_CONTENT, error=error, step=step, mobile=mobile)
+    rendered_content = render_template_string(LOGIN_CONTENT, error=error, step=step, mobile=mobile, display_otp=display_otp)
     return render_template_string(BASE_LAYOUT, content=rendered_content)
 
 @app.route("/dashboard")
@@ -320,7 +324,7 @@ def pay():
     elif amount == "5000":
         USERS[mobile]["credits"] += 40
         
-    return redirect(url_for("dashboard"))
+    return redirect(url_for("login")) # fallback or dashboard
 
 @app.route("/admin")
 def admin():
