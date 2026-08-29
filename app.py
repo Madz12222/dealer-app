@@ -63,10 +63,21 @@ def fetch_rc_from_idspay(vehicle_number):
         if response.status_code == 200:
             res_json = response.json()
             if res_json.get("status", {}).get("code") == 200 or "data" in res_json:
-                data_block = res_json.get("data", {})
-                if isinstance(data_block, dict) and "data" in data_block:
-                    return data_block.get("data")
-                return data_block
+                outer_data = res_json.get("data", {})
+                
+                # Grab mobileNo from the outer data block level
+                outer_mobile = outer_data.get("mobileNo")
+                
+                inner_data = outer_data.get("data", {})
+                if isinstance(inner_data, dict):
+                    if outer_mobile:
+                        inner_data["mobileNumber"] = outer_mobile
+                    return inner_data
+                
+                if outer_mobile and isinstance(outer_data, dict):
+                    outer_data["mobileNumber"] = outer_mobile
+                return outer_data
+                
         return {
             "regNo": vehicle_number.upper(),
             "error": "Failed to fetch from IDSPay",
@@ -282,28 +293,7 @@ def dealer_dashboard():
             conn.commit()
             
             dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
-            raw_rc = fetch_rc_from_idspay(vehicle_number)
-            
-            if raw_rc and isinstance(raw_rc, dict):
-                # Ensure MobileNumber key maps correctly even if different variations are returned by the API
-                mobile_val = (
-                    raw_rc.get('mobileNumber') or 
-                    raw_rc.get('mobile_number') or 
-                    raw_rc.get('ownerMobile') or 
-                    raw_rc.get('mobile') or
-                    raw_rc.get('MobNumber')
-                )
-                
-                # Rebuild dict cleanly to prioritize MobileNumber right after Owner/Model if desired, or keep keys intact
-                rc_data = {}
-                # Populate keys explicitly or keep original order
-                for k, v in raw_rc.items():
-                    rc_data[k] = v
-                
-                if mobile_val:
-                    rc_data['mobileNumber'] = mobile_val
-                elif 'mobileNumber' not in rc_data:
-                    rc_data['mobileNumber'] = 'N/A'
+            rc_data = fetch_rc_from_idspay(vehicle_number)
         else:
             msg = "Insufficient credits! Please recharge using the packages below."
             
