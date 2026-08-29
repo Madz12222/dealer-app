@@ -33,7 +33,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             mobile TEXT UNIQUE,
-            credits INTEGER DEFAULT 15,
+            credits INTEGER DEFAULT 5,
             status TEXT DEFAULT 'Active',
             payment_proof TEXT
         )
@@ -284,6 +284,18 @@ ADMIN_TEMPLATE = '''
     </div>
     {% endif %}
 
+    <!-- Send Custom Credits to Any Mobile Number -->
+    <div style="background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="margin-top:0; color:#856404; font-size:16px;">🎁 Send Credits to Any Mobile Number</h3>
+        <form method="POST" action="/admin/send-credits">
+            <div style="display:flex; gap:10px; flex-wrap:wrap;">
+                <input type="text" name="target_mobile" placeholder="Enter 10-digit Mobile Number" required style="flex:2; padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; min-width:180px;">
+                <input type="number" name="credit_amount" placeholder="Credits (e.g. 10)" required style="flex:1; padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; min-width:100px;">
+                <button type="submit" style="background:#28a745; color:white; border:none; padding:10px 20px; border-radius:5px; font-weight:bold; font-size:14px; cursor:pointer;">Send Credits</button>
+            </div>
+        </form>
+    </div>
+
     <!-- Dealers Management Table -->
     <h3 style="color:#333; font-size:16px; margin-bottom:8px;">Registered Dealers & Credits</h3>
     <div style="overflow-x:auto; margin-bottom:20px;">
@@ -303,7 +315,7 @@ ADMIN_TEMPLATE = '''
                     <td style="padding:8px;">{{ d.credits }}</td>
                     <td style="padding:8px;"><span style="background:#28a745; color:white; padding:2px 6px; border-radius:4px; font-size:11px;">{{ d.status }}</span></td>
                     <td style="padding:8px; text-align:center;">
-                        <a href="/admin/add-credits?mobile={{ d.mobile }}" style="background:#ffc107; color:black; padding:4px 8px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:11px;">+10 Credits</a>
+                        <a href="/admin/send-credits-quick?mobile={{ d.mobile }}" style="background:#ffc107; color:black; padding:4px 8px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:11px;">+10 Credits</a>
                     </td>
                 </tr>
                 {% endfor %}
@@ -355,7 +367,7 @@ def dealer_login():
             dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
             
             if not dealer:
-                conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, 15, "Active")', (mobile, 'Dealer'))
+                conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, 5, "Active")', (mobile, 'Dealer'))
             else:
                 conn.execute('UPDATE dealers SET status = "Active" WHERE mobile = ?', (mobile,))
                 
@@ -450,8 +462,30 @@ def admin_panel():
     conn.close()
     return render_template_string(ADMIN_TEMPLATE, dealers=dealers, logs=logs, total_dealers=total_dealers, total_searches=total_searches, total_collection=total_collection, rc_data=rc_data, searched_num=searched_num, msg=msg)
 
-@app.route('/admin/add-credits')
-def admin_add_credits():
+@app.route('/admin/send-credits', methods=['POST'])
+def admin_send_credits():
+    if 'dealer_mobile' not in session or session['dealer_mobile'] != ADMIN_MOBILE:
+        return redirect(url_for('dealer_login'))
+    
+    target_mobile = request.form.get('target_mobile', '').strip()
+    try:
+        credit_amount = int(request.form.get('credit_amount', 0))
+    except ValueError:
+        credit_amount = 0
+        
+    if target_mobile and credit_amount > 0:
+        conn = get_db()
+        dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (target_mobile,)).fetchone()
+        if dealer:
+            conn.execute('UPDATE dealers SET credits = credits + ? WHERE mobile = ?', (credit_amount, target_mobile))
+        else:
+            conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, ?, "Active")', (target_mobile, 'Dealer', credit_amount))
+        conn.commit()
+        conn.close()
+    return redirect(url_for('admin_panel'))
+
+@app.route('/admin/send-credits-quick')
+def admin_send_credits_quick():
     if 'dealer_mobile' not in session or session['dealer_mobile'] != ADMIN_MOBILE:
         return redirect(url_for('dealer_login'))
     
