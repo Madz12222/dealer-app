@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route('/')
 def index():
-    return "<h1>Fresh Start - Jadijar Dashboard Active</h1>"
+    return "<h1>Jadijar Portal - Live & Operational</h1>"
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=10000)
