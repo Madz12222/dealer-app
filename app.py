@@ -27,7 +27,8 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-def init_db():
+
+    def init_db():
     conn = get_db()
     conn.execute('''
     CREATE TABLE IF NOT EXISTS dealers (
@@ -48,26 +49,39 @@ def init_db():
         mobile TEXT
     )
     ''')
-
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS club_logs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            dealer_mobile TEXT,
-            vehicle_number TEXT,
-            search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+    CREATE TABLE IF NOT EXISTS club_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dealer_mobile TEXT,
+        vehicle_number TEXT,
+        search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
     ''')
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS recharge_records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            dealer_mobile TEXT,
-            amount INTEGER,
-            credits_added INTEGER,
-            payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
+    CREATE TABLE IF NOT EXISTS recharge_records (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        dealer_mobile TEXT,
+        amount INTEGER,
+        credits_added INTEGER,
+        payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
     ''')
+    
+    # Safe column checks for existing databases
+    try:
+        conn.execute('ALTER TABLE dealers ADD COLUMN is_verified INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+        
+    try:
+        conn.execute('ALTER TABLE dealers ADD COLUMN bonus_claimed INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+        
     conn.commit()
     conn.close()
+
+init_db()
 
 init_db()
 
