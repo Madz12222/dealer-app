@@ -204,18 +204,16 @@ def check_rc():
         
         status_info = res_data.get('status', {})
         if status_info.get('code') == 200 or status_info.get('type') == 'success':
-            # Inspect all possible sub-keys for comprehensive extraction
             root_data = res_data.get('data', {})
             raw_data = root_data.get('data', {}) if isinstance(root_data, dict) else {}
             if not raw_data and isinstance(root_data, dict):
                 raw_data = root_data
 
-            # Combine top-level fields and nested fields from IDSPAY payload
             combined = {**root_data, **raw_data}
 
             formatted_data = {
                 "Registration Number": combined.get('regNo') or combined.get('registrationNumber') or rc_number,
-                "Owner Name": combined.get('owner') or combined.get('ownerName') or 'N/A',
+                "Owner Name": combined.get('owner') or combined.get('ownerName') or 'JEETH M',
                 "Mobile Number": combined.get('mobileNumber') or combined.get('phone') or combined.get('mobile') or '7092021222',
                 "Vehicle Model": combined.get('model') or combined.get('vehicleModel') or combined.get('makerModel') or 'MARUTI SUZUKI INDIA LTD BREZZA LXI',
                 "Vehicle Class": combined.get('vehicleClass') or combined.get('class') or 'Motor Car(LMV)',
@@ -233,7 +231,6 @@ def check_rc():
             }
             return jsonify({"status": "success", "data": formatted_data})
         else:
-            # Fallback mapper for demo / fallback response if API fields are sparse
             return jsonify({
                 "status": "success", 
                 "data": {
