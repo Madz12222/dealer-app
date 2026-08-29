@@ -19,7 +19,7 @@ API_KEY = "99310f2f-6808-4da5-be3e-84143ed8228d"
 TOKEN_ID = "9PCAflhNoBWFLnUEQuicQuYkkn2ZANd4"
 
 # Admin configuration
-ADMIN_MOBILE = "8122522222"
+ADMIN_MOBILE = "8122252222"
 
 def get_db():
     conn = sqlite3.connect('dealer_app.db')
