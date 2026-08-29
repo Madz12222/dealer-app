@@ -28,6 +28,7 @@ def get_db():
     return conn
 
 
+ 
     def init_db():
     conn = get_db()
     conn.execute('''
@@ -67,6 +68,21 @@ def get_db():
     )
     ''')
     
+    try:
+        conn.execute('ALTER TABLE dealers ADD COLUMN is_verified INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+        
+    try:
+        conn.execute('ALTER TABLE dealers ADD COLUMN bonus_claimed INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+        
+    conn.commit()
+    conn.close()
+
+init_db()
+
     # Safe column checks for existing databases
     try:
         conn.execute('ALTER TABLE dealers ADD COLUMN is_verified INTEGER DEFAULT 0')
