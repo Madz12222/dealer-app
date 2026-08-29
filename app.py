@@ -1,20 +1,15 @@
 from flask import Flask, render_template_string, request, redirect, url_for, session
-import requests
 import random
 import os
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
 
-# In-memory user database simulation: { mobile: { "credits": int, "role": "user"/"admin" } }
 USERS = {
     "8122252222": {"credits": 5, "role": "admin"},
 }
 
-# Dummy OTP storage for mobile verification login simulation
 OTP_STORAGE = {}
-
-# ----------------- HTML TEMPLATES WITH MOBILE RESPONSIVE FIXES -----------------
 
 BASE_LAYOUT = """
 <!DOCTYPE html>
@@ -22,7 +17,7 @@ BASE_LAYOUT = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dealer Portal</title>
+    <title>Madzinu Dealers Club</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -100,15 +95,15 @@ BASE_LAYOUT = """
 </head>
 <body>
     <div class="container">
-        {% block content %}{% endblock %}
+        {{ content|safe }}
     </div>
 </body>
 </html>
 """
 
-LOGIN_TEMPLATE = BASE_LAYOUT + """
-{% block content %}
-<h2 style="text-align: center; color: #333;">Dealer Portal Login</h2>
+LOGIN_CONTENT = """
+<h2 style="text-align: center; color: #333;">Madzinu Dealers Club</h2>
+<p style="text-align: center; color: #666; font-size: 13px; margin-top: -5px;">Dealer Portal Login</p>
 {% if error %}
 <div style="background: #f8d7da; color: #721c24; padding: 10px; border-radius: 6px; margin-bottom: 15px; font-size: 13px;">{{ error }}</div>
 {% endif %}
@@ -126,16 +121,14 @@ LOGIN_TEMPLATE = BASE_LAYOUT + """
 {% if step == 'otp' %}
 <div style="margin-top: 10px; font-size: 13px; color: #666; text-align: center;">Demo OTP sent to console/session.</div>
 {% endif %}
-{% endblock %}
 """
 
-DASHBOARD_TEMPLATE = BASE_LAYOUT + """
-{% block content %}
+DASHBOARD_CONTENT = """
 <div style="background: #007bff; color: white; padding: 16px; border-radius: 10px; display: flex; flex-direction: column; gap: 12px;">
     <div style="display: flex; justify-content: space-between; align-items: center;">
         <div>
-            <div style="font-size: 13px; opacity: 0.9;">WALLET</div>
-            <div style="font-size: 24px; font-weight: bold;">{{ credits }} Checks</div>
+            <div style="font-size: 12px; opacity: 0.9; text-transform: uppercase; letter-spacing: 0.5px;">Madzinu Dealers Club</div>
+            <div style="font-size: 22px; font-weight: bold; margin-top: 2px;">{{ credits }} Checks Available</div>
         </div>
         <div>
             {% if role == 'admin' %}
@@ -157,30 +150,30 @@ DASHBOARD_TEMPLATE = BASE_LAYOUT + """
     </form>
 </div>
 
-<!-- Recharge Packages Section with ₹300, ₹2,000, and ₹5,000 options -->
+<!-- Recharge Packages Section -->
 <div style="margin-top: 20px; background: #fffdf5; border: 1px solid #ffeeba; padding: 15px; border-radius: 8px;">
     <h3 style="margin-top: 0; color: #856404; font-size: 16px; text-align: center;">Recharge Credits / Packages</h3>
-    <div style="display: flex; gap: 8px; justify-content: space-between; margin-top: 12px;">
+    <div style="display: flex; gap: 6px; justify-content: space-between; margin-top: 12px;">
         
-        <!-- ₹300 Package (1 Credit) -->
-        <div onclick="window.location.href='/pay?amount=300'" style="border: 2px solid #007bff; border-radius: 8px; padding: 10px 4px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
-            <div style="font-size: 15px; font-weight: bold; color: #007bff;">₹300</div>
-            <div style="font-size: 12px; color: #333; font-weight: bold; margin-top: 2px;">1 Credit</div>
-            <div style="font-size: 10px; color: #555; margin-top: 2px;">Single Check &rarr;</div>
+        <!-- ₹300 Package -->
+        <div onclick="window.location.href='/pay?amount=300'" style="border: 2px solid #007bff; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
+            <div style="font-size: 14px; font-weight: bold; color: #007bff;">₹300</div>
+            <div style="font-size: 11px; color: #333; font-weight: bold; margin-top: 2px;">1 Credit</div>
+            <div style="font-size: 9px; color: #555; margin-top: 2px;">Single Check &rarr;</div>
         </div>
 
-        <!-- ₹2,000 Package (10 Credits) -->
-        <div onclick="window.location.href='/pay?amount=2000'" style="border: 2px solid #ffc107; border-radius: 8px; padding: 10px 4px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
-            <div style="font-size: 15px; font-weight: bold; color: #d39e00;">₹2,000</div>
-            <div style="font-size: 12px; color: #333; font-weight: bold; margin-top: 2px;">10 Credits</div>
-            <div style="font-size: 10px; color: #555; margin-top: 2px;">Click to Pay &rarr;</div>
+        <!-- ₹2,000 Package -->
+        <div onclick="window.location.href='/pay?amount=2000'" style="border: 2px solid #ffc107; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
+            <div style="font-size: 14px; font-weight: bold; color: #d39e00;">₹2,000</div>
+            <div style="font-size: 11px; color: #333; font-weight: bold; margin-top: 2px;">10 Credits</div>
+            <div style="font-size: 9px; color: #555; margin-top: 2px;">Click to Pay &rarr;</div>
         </div>
 
-        <!-- ₹5,000 Package (40 Credits) -->
-        <div onclick="window.location.href='/pay?amount=5000'" style="border: 2px solid #28a745; border-radius: 8px; padding: 10px 4px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
-            <div style="font-size: 15px; font-weight: bold; color: #28a745;">₹5,000</div>
-            <div style="font-size: 12px; color: #333; font-weight: bold; margin-top: 2px;">40 Credits</div>
-            <div style="font-size: 10px; color: #555; margin-top: 2px;">Click to Pay &rarr;</div>
+        <!-- ₹5,000 Package -->
+        <div onclick="window.location.href='/pay?amount=5000'" style="border: 2px solid #28a745; border-radius: 8px; padding: 10px 2px; text-align: center; width: 32%; background: #fff; cursor: pointer; box-sizing: border-box;">
+            <div style="font-size: 14px; font-weight: bold; color: #28a745;">₹5,000</div>
+            <div style="font-size: 11px; color: #333; font-weight: bold; margin-top: 2px;">40 Credits</div>
+            <div style="font-size: 9px; color: #555; margin-top: 2px;">Click to Pay &rarr;</div>
         </div>
 
     </div>
@@ -205,12 +198,10 @@ DASHBOARD_TEMPLATE = BASE_LAYOUT + """
     </div>
 </div>
 {% endif %}
-{% endblock %}
 """
 
-ADMIN_TEMPLATE = BASE_LAYOUT + """
-{% block content %}
-<h2>Admin Panel</h2>
+ADMIN_CONTENT = """
+<h2>Admin Panel - Madzinu Dealers Club</h2>
 <p><a href="/dashboard" class="btn btn-primary" style="margin-bottom: 15px;">&larr; Back to Dashboard</a></p>
 <h3>Registered Users & Credits</h3>
 <div class="table-responsive">
@@ -229,10 +220,7 @@ ADMIN_TEMPLATE = BASE_LAYOUT + """
         {% endfor %}
     </table>
 </div>
-{% endblock %}
 """
-
-# ----------------- FLASK ROUTES -----------------
 
 @app.route("/", methods=["GET", "POST"])
 def login():
@@ -245,7 +233,6 @@ def login():
 
     if request.method == "POST":
         if "otp" not in request.form:
-            # Step 1: Request OTP
             if mobile and len(mobile) == 10:
                 generated_otp = str(random.randint(1000, 9999))
                 OTP_STORAGE[mobile] = generated_otp
@@ -254,18 +241,18 @@ def login():
             else:
                 error = "Please enter a valid 10-digit mobile number."
         else:
-            # Step 2: Verify OTP
             entered_otp = request.form.get("otp")
             if mobile in OTP_STORAGE and OTP_STORAGE[mobile] == entered_otp:
                 session["mobile"] = mobile
                 if mobile not in USERS:
-                    USERS[mobile] = {"credits": 2, "role": "user"} # default trial credits
+                    USERS[mobile] = {"credits": 2, "role": "user"}
                 return redirect(url_for("dashboard"))
             else:
                 error = "Invalid OTP. Please try again."
                 step = "otp"
 
-    return render_template_string(LOGIN_TEMPLATE, error=error, step=step, mobile=mobile)
+    rendered_content = render_template_string(LOGIN_CONTENT, error=error, step=step, mobile=mobile)
+    return render_template_string(BASE_LAYOUT, content=rendered_content)
 
 @app.route("/dashboard")
 def dashboard():
@@ -275,14 +262,15 @@ def dashboard():
     mobile = session["mobile"]
     user_data = USERS.get(mobile, {"credits": 0, "role": "user"})
     
-    return render_template_string(
-        DASHBOARD_TEMPLATE, 
+    rendered_content = render_template_string(
+        DASHBOARD_CONTENT, 
         credits=user_data["credits"], 
         role=user_data["role"], 
         mobile=mobile,
         result=session.pop("last_result", None),
         error=session.pop("lookup_error", None)
     )
+    return render_template_string(BASE_LAYOUT, content=rendered_content)
 
 @app.route("/lookup", methods=["POST"])
 def lookup():
@@ -298,13 +286,10 @@ def lookup():
 
     reg_no = request.form.get("reg_no", "").strip().upper()
     
-    # Deduct credit if not admin
     if user_data["role"] != "admin":
         USERS[mobile]["credits"] -= 1
 
-    # Simulate or call IDSPay API here (mock response used for stability if external network fails)
     try:
-        # Replace with actual IDSPay endpoint call if active
         mock_rc_data = {
             "RegNo": reg_no,
             "VehicleClass": "Motor Car(LMV)",
@@ -328,7 +313,6 @@ def pay():
     amount = request.args.get("amount")
     mobile = session["mobile"]
     
-    # Add credits based on package selected
     if amount == "300":
         USERS[mobile]["credits"] += 1
     elif amount == "2000":
@@ -343,7 +327,8 @@ def admin():
     if "mobile" not in session or USERS.get(session["mobile"], {}).get("role") != "admin":
         return redirect(url_for("dashboard"))
     
-    return render_template_string(ADMIN_TEMPLATE, users=USERS)
+    rendered_content = render_template_string(ADMIN_CONTENT, users=USERS)
+    return render_template_string(BASE_LAYOUT, content=rendered_content)
 
 @app.route("/logout")
 def logout():
