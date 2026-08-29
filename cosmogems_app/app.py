@@ -185,6 +185,9 @@ def manage():
     conn.close()
     
     return render_template('manage.html', expenses=expenses, today=today)
+@app.route('/')
+def home():
+    return render_template('login.html')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
@@ -209,6 +212,4 @@ def place_order():
         })
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
-@app.route('/')
-def home():
-    return render_template('login.html')
+
