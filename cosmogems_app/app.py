@@ -5,7 +5,7 @@ app = Flask(__name__)
 app.secret_key = 'madz_dealer_secret_key'
 
 UPI_ID = "madhansampath@kvb"
-IDSPAY_API_KEY = "YOUR_IDSPAY_API_KEY"  # Replace with your actual active IDSPay key if needed
+IDSPAY_API_KEY = "YOUR_IDSPAY_API_KEY"
 IDSPAY_URL = "https://api.idspay.in/v3/vehicle/rc-to-mobile"
 
 @app.route('/')
@@ -29,7 +29,7 @@ def verify_otp():
 def dealer_dashboard():
     if 'dealer_mobile' not in session:
         return redirect(url_for('home'))
-    credits = 1  # Default free check credit
+    credits = 1
     return render_template('dealer_dashboard.html', credits=credits)
 
 @app.route('/check-vehicle', methods=['POST'])
@@ -38,14 +38,11 @@ def check_vehicle():
         return jsonify({"status": "error", "message": "Unauthorized"}), 401
         
     vehicle_number = request.form.get('vehicle_number', '').strip().upper()
-    
     headers = {
         "Authorization": f"Bearer {IDSPAY_API_KEY}",
         "Content-Type": "application/json"
     }
-    payload = {
-        "rc_number": vehicle_number
-    }
+    payload = {"rc_number": vehicle_number}
     
     try:
         response = requests.post(IDSPAY_URL, json=payload, headers=headers, timeout=5)
@@ -62,7 +59,6 @@ def check_vehicle():
                 "status": "error",
                 "message": api_response.get("message", "Could not fetch vehicle details")
             }), 400
-            
     except Exception as e:
         return jsonify({"status": "error", "message": str(e)}), 500
 
@@ -70,12 +66,10 @@ def check_vehicle():
 def topup():
     if 'dealer_mobile' not in session:
         return redirect(url_for('home'))
-        
     if request.method == 'POST':
         amount = int(request.form.get('amount'))
         credits = 10 if amount == 2000 else 40
         return render_template('upi_payment.html', upi_id=UPI_ID, amount=amount, credits=credits)
-        
     return render_template('topup.html')
 
 @app.route('/admin/topups')
