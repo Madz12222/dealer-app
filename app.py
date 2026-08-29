@@ -205,6 +205,24 @@ DASHBOARD_CONTENT = """
 ADMIN_CONTENT = """
 <h2>Admin Panel - Madzinu Dealers Club</h2>
 <p><a href="/dashboard" class="btn btn-primary" style="margin-bottom: 15px;">&larr; Back to Dashboard</a></p>
+
+<!-- Add User / Modify Credits Form -->
+<div style="background: #fff; border: 1px solid #ccc; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+    <h3 style="margin-top: 0; color: #333; font-size: 16px;">Add Dealer / Assign Credits</h3>
+    <form method="POST" action="/admin/update">
+        <label style="font-size: 13px; font-weight: bold;">Mobile Number</label>
+        <input type="text" name="target_mobile" placeholder="Enter 10-digit mobile" required>
+        <label style="font-size: 13px; font-weight: bold;">Credits to Set</label>
+        <input type="number" name="target_credits" placeholder="e.g. 10" required>
+        <label style="font-size: 13px; font-weight: bold;">Role</label>
+        <select name="target_role" style="width: 100%; padding: 10px; margin: 8px 0 15px 0; border: 1px solid #ccc; border-radius: 6px; box-sizing: border-box; font-size: 15px;">
+            <option value="user">user</option>
+            <option value="admin">admin</option>
+        </select>
+        <button type="submit" class="btn btn-primary" style="width: 100%;">Save Dealer Details</button>
+    </form>
+</div>
+
 <h3>Registered Users & Credits</h3>
 <div class="table-responsive">
     <table>
@@ -212,12 +230,16 @@ ADMIN_CONTENT = """
             <th>Mobile</th>
             <th>Credits</th>
             <th>Role</th>
+            <th>Action</th>
         </tr>
         {% for mob, data in users.items() %}
         <tr>
             <td>{{ mob }}</td>
             <td>{{ data.credits }}</td>
             <td>{{ data.role }}</td>
+            <td>
+                <a href="/admin/delete/{{ mob }}" class="btn btn-danger" style="padding: 4px 8px; font-size: 11px;">Remove</a>
+            </td>
         </tr>
         {% endfor %}
     </table>
@@ -294,11 +316,11 @@ def lookup():
         USERS[mobile]["credits"] -= 1
 
     try:
-        # Comprehensive full RC details dataset
+        # Corrected dataset with Owner Name properly set to M JEETH
         mock_rc_data = {
             "Registration Number": reg_no,
-            "Owner Name": "MADHAN SAMPATH",
-            "Father's / Husband's Name": "SAMPATH KUMAR",
+            "Owner Name": "M JEETH",
+            "Father's / Husband's Name": "MADHAN SAMPATH",
             "Vehicle Class": "Motor Car (LMV)",
             "Maker / Model": "MARUTI BREZZA LXI",
             "Fuel Type": "PETROL",
@@ -345,6 +367,33 @@ def admin():
     
     rendered_content = render_template_string(ADMIN_CONTENT, users=USERS)
     return render_template_string(BASE_LAYOUT, content=rendered_content)
+
+@app.route("/admin/update", methods=["POST"])
+def admin_update():
+    if "mobile" not in session or USERS.get(session["mobile"], {}).get("role") != "admin":
+        return redirect(url_for("dashboard"))
+    
+    target_mobile = request.form.get("target_mobile", "").strip()
+    try:
+        target_credits = int(request.form.get("target_credits", 0))
+    except ValueError:
+        target_credits = 0
+    target_role = request.form.get("target_role", "user")
+    
+    if target_mobile and len(target_mobile) == 10:
+        USERS[target_mobile] = {"credits": target_credits, "role": target_role}
+        
+    return redirect(url_for("admin"))
+
+@app.route("/admin/delete/<target_mobile>")
+def admin_delete(target_mobile):
+    if "mobile" not in session or USERS.get(session["mobile"], {}).get("role") != "admin":
+        return redirect(url_for("dashboard"))
+    
+    if target_mobile in USERS and target_mobile != session["mobile"]:
+        USERS.pop(target_mobile, None)
+        
+    return redirect(url_for("admin"))
 
 @app.route("/logout")
 def logout():
