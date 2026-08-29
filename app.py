@@ -187,7 +187,7 @@ DASHBOARD_CONTENT = """
 
 {% if result %}
 <div style="margin-top: 20px; background: #e2f0d9; border: 1px solid #c3e6cb; padding: 15px; border-radius: 8px;">
-    <h4 style="margin-top: 0; color: #155724;">RC Verification Result</h4>
+    <h4 style="margin-top: 0; color: #155724;">Complete RC Verification Details</h4>
     <div class="table-responsive">
         <table>
             {% for key, value in result.items() %}
@@ -294,13 +294,25 @@ def lookup():
         USERS[mobile]["credits"] -= 1
 
     try:
+        # Comprehensive full RC details dataset
         mock_rc_data = {
-            "RegNo": reg_no,
-            "VehicleClass": "Motor Car(LMV)",
-            "Model": "BREZZA LXI",
-            "VehicleColour": "EXUBERANT BLUE",
-            "FuelType": "PETROL",
-            "OwnerName": "DEALER VEHICLE USER",
+            "Registration Number": reg_no,
+            "Owner Name": "MADHAN SAMPATH",
+            "Father's / Husband's Name": "SAMPATH KUMAR",
+            "Vehicle Class": "Motor Car (LMV)",
+            "Maker / Model": "MARUTI BREZZA LXI",
+            "Fuel Type": "PETROL",
+            "Vehicle Colour": "EXUBERANT BLUE",
+            "Engine Number": "K15CB1234567",
+            "Chassis Number": "MA3FEEB1S00123456",
+            "Registration Date": "14-Jan-2023",
+            "Fitness Upto": "13-Jan-2038",
+            "Insurance Company": "ICICI LOMBARD GENERAL INSURANCE",
+            "Insurance Policy Number": "3001/2026/12345",
+            "Insurance Valid Upto": "12-Jan-2027",
+            "PUC Valid Upto": "12-Jul-2026",
+            "Financier Name": "HDFC BANK LTD",
+            "RTO Office": "RTO, CHENNAI CENTRAL (TN-10)",
             "Status": "ACTIVE"
         }
         session["last_result"] = mock_rc_data
@@ -324,7 +336,7 @@ def pay():
     elif amount == "5000":
         USERS[mobile]["credits"] += 40
         
-    return redirect(url_for("login")) # fallback or dashboard
+    return redirect(url_for("dashboard"))
 
 @app.route("/admin")
 def admin():
