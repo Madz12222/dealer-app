@@ -2,6 +2,7 @@ import os
 import random
 import sqlite3
 import requests
+from datetime import datetime
 from flask import Flask, render_template_string, request, redirect, url_for, session
 
 app = Flask(__name__)
@@ -44,6 +45,15 @@ def init_db():
             dealer_mobile TEXT,
             vehicle_number TEXT,
             search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    conn.execute('''
+        CREATE TABLE IF NOT EXISTS recharge_records (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            dealer_mobile TEXT,
+            amount INTEGER,
+            credits_added INTEGER,
+            payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.commit()
@@ -186,21 +196,21 @@ DASHBOARD_TEMPLATE = '''
 
 <div id="recharge" style="background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:8px;">
 <h4 style="color:#856404; margin:0 0 10px 0; text-align:center;">Recharge Credits / Packages</h4>
-<div style="display:flex; justify-content:space-between; gap:8px; margin-bottom:12px;">
-<div onclick="showBankDetails('₹300', '1 Credit')" style="flex:1; background:white; padding:10px; border-radius:5px; border:2px solid #17a2b8; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-<b style="color:#333; font-size:14px;">₹300</b>
-<p style="margin:4px 0 0 0; color:#17a2b8; font-weight:bold; font-size:12px;">1 Credit</p>
-<span style="font-size:9px; color:#666; display:block; margin-top:3px;">Select ➔</span>
+<div style="display:flex; justify-content:space-between; gap:6px; margin-bottom:12px;">
+<div onclick="showBankDetails('₹300', '1', 300)" style="flex:1; background:white; padding:8px; border-radius:5px; border:2px solid #17a2b8; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<b style="color:#333; font-size:13px;">₹300</b>
+<p style="margin:4px 0 0 0; color:#17a2b8; font-weight:bold; font-size:11px;">1 Credit</p>
+<span style="font-size:9px; color:#666; display:block; margin-top:2px;">Select ➔</span>
 </div>
-<div onclick="showBankDetails('₹2,000', '10 Credits')" style="flex:1; background:white; padding:10px; border-radius:5px; border:2px solid #ffc107; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-<b style="color:#333; font-size:14px;">₹2,000</b>
-<p style="margin:4px 0 0 0; color:#0056b3; font-weight:bold; font-size:12px;">10 Credits</p>
-<span style="font-size:9px; color:#666; display:block; margin-top:3px;">Select ➔</span>
+<div onclick="showBankDetails('₹2,000', '10', 2000)" style="flex:1; background:white; padding:8px; border-radius:5px; border:2px solid #ffc107; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<b style="color:#333; font-size:13px;">₹2,000</b>
+<p style="margin:4px 0 0 0; color:#0056b3; font-weight:bold; font-size:11px;">10 Credits</p>
+<span style="font-size:9px; color:#666; display:block; margin-top:2px;">Select ➔</span>
 </div>
-<div onclick="showBankDetails('₹5,000', '40 Credits')" style="flex:1; background:white; padding:10px; border-radius:5px; border:2px solid #28a745; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
-<b style="color:#333; font-size:14px;">₹5,000</b>
-<p style="margin:4px 0 0 0; color:#28a745; font-weight:bold; font-size:12px;">40 Credits</p>
-<span style="font-size:9px; color:#666; display:block; margin-top:3px;">Select ➔</span>
+<div onclick="showBankDetails('₹5,000', '40', 5000)" style="flex:1; background:white; padding:8px; border-radius:5px; border:2px solid #28a745; text-align:center; cursor:pointer; box-shadow:0 2px 4px rgba(0,0,0,0.05);">
+<b style="color:#333; font-size:13px;">₹5,000</b>
+<p style="margin:4px 0 0 0; color:#28a745; font-weight:bold; font-size:11px;">40 Credits</p>
+<span style="font-size:9px; color:#666; display:block; margin-top:2px;">Select ➔</span>
 </div>
 </div>
 
@@ -214,14 +224,14 @@ DASHBOARD_TEMPLATE = '''
 
 </div>
 <script>
-function showBankDetails(amount, credits) {
+function showBankDetails(amount, credits, amountNum) {
 var box = document.getElementById('bankDetailsBox');
 var title = document.getElementById('selectedPackageTitle');
 var whatsappBtn = document.getElementById('whatsappBtn');
-title.innerText = "Selected: " + amount + " (" + credits + ")";
+title.innerText = "Selected: " + amount + " (" + credits + " Credits)";
 box.style.display = 'block';
 var dealerMobile = "{{ dealer.mobile }}";
-var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + ". UPI ID: madhansampath@kvb. Dealer Mobile: " + dealerMobile;
+var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + " Credits. UPI ID: madhansampath@kvb. Dealer Mobile: " + dealerMobile;
 whatsappBtn.href = "https://wa.me/?text=" + encodeURIComponent(msg);
 box.scrollIntoView({ behavior: 'smooth' });
 }
@@ -235,10 +245,10 @@ ADMIN_TEMPLATE = '''
 <html>
 <head><title>Admin Panel - Cosmogems Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family:sans-serif; background:#f4f4f9; margin:0; padding:15px;">
-<div style="max-width:800px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+<div style="max-width:850px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
 <div style="display:flex; justify-content:space-between; align-items:center; background:#343a40; padding:12px 15px; border-radius:8px; color:white; margin-bottom:20px;">
-<h2 style="margin:0; font-size:20px;">🛡️ Admin Command Panel</h2>
+<h2 style="margin:0; font-size:18px;">🛡️ Admin Command Panel</h2>
 <div>
 <a href="/dealer/dashboard" style="background:#007bff; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px; margin-right:5px;">🏠 Dashboard</a>
 <a href="/dealer/logout" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Logout</a>
@@ -247,21 +257,54 @@ ADMIN_TEMPLATE = '''
 
 <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
 <div style="flex:1; background:#e8f4fd; border:1px solid #b8daff; padding:15px; border-radius:8px; text-align:center;">
-<div style="font-size:12px; color:#004085; font-weight:bold;">TOTAL DEALERS</div>
-<div style="font-size:24px; font-weight:bold; color:#0056b3; margin-top:5px;">{{ total_dealers }}</div>
+<div style="font-size:11px; color:#004085; font-weight:bold;">TOTAL DEALERS</div>
+<div style="font-size:22px; font-weight:bold; color:#0056b3; margin-top:5px;">{{ total_dealers }}</div>
 </div>
 <div style="flex:1; background:#e2f0d9; border:1px solid #c3e6cb; padding:15px; border-radius:8px; text-align:center;">
-<div style="font-size:12px; color:#155724; font-weight:bold;">TOTAL CHECKS</div>
-<div style="font-size:24px; font-weight:bold; color:#28a745; margin-top:5px;">{{ total_searches }}</div>
+<div style="font-size:11px; color:#155724; font-weight:bold;">TOTAL CHECKS</div>
+<div style="font-size:22px; font-weight:bold; color:#28a745; margin-top:5px;">{{ total_searches }}</div>
+</div>
+<div style="flex:1; background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:8px; text-align:center;">
+<div style="font-size:11px; color:#856404; font-weight:bold;">TOTAL REVENUE</div>
+<div style="font-size:22px; font-weight:bold; color:#856404; margin-top:5px;">₹{{ total_revenue }}</div>
 </div>
 </div>
 
+<!-- Date-wise Filter Section -->
 <div style="background:#f8f9fa; border:1px solid #ced4da; padding:15px; border-radius:8px; margin-bottom:20px;">
-<h3 style="margin-top:0; color:#333; font-size:16px;">🔍 Admin Free Vehicle Lookup (0 Credits Deducted)</h3>
+<h3 style="margin-top:0; color:#333; font-size:15px;">📅 Filter Daily Collection & History by Date</h3>
+<form method="GET" action="/admin" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+<input type="date" name="filter_date" value="{{ selected_date }}" style="padding:8px; border:1px solid #ccc; border-radius:5px; font-size:13px;">
+<button type="submit" style="background:#0d6efd; color:white; border:none; padding:9px 15px; border-radius:5px; font-weight:bold; font-size:13px; cursor:pointer;">Filter Date</button>
+<a href="/admin" style="background:#6c757d; color:white; padding:9px 15px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Reset Filter</a>
+</form>
+<div style="margin-top:10px; font-size:14px; color:#333;">
+Collection for <b>{{ selected_date }}</b>: <span style="color:#28a745; font-weight:bold; font-size:16px;">₹{{ date_revenue }}</span>
+</div>
+</div>
+
+<!-- Manual Credit Sender to Any Number -->
+<div style="background:#eef2f7; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin-bottom:20px;">
+<h3 style="margin-top:0; color:#1e293b; font-size:15px;">⚡ Custom Credit Sender (Any Mobile Number)</h3>
+{% if recharge_msg %}<div style="background:#d1e7dd; color:#0f5132; padding:8px; border-radius:5px; margin-bottom:10px; font-size:13px;">{{ recharge_msg }}</div>{% endif %}
+<form method="POST" action="/admin/send-custom-credits" style="display:flex; gap:10px; flex-wrap:wrap;">
+<input type="text" name="target_mobile" placeholder="Enter 10-digit Mobile" required style="flex:1; min-width:180px; padding:9px; border:1px solid #ccc; border-radius:5px; font-size:13px;">
+<select name="package_type" style="flex:1; min-width:160px; padding:9px; border:1px solid #ccc; border-radius:5px; font-size:13px; background:white;">
+<option value="300_1">₹300 (1 Credit)</option>
+<option value="2000_10">₹2,000 (10 Credits)</option>
+<option value="5000_40">₹5,000 (40 Credits)</option>
+</select>
+<button type="submit" style="background:#198754; color:white; border:none; padding:9px 15px; border-radius:5px; font-weight:bold; font-size:13px; cursor:pointer;">Add Credits & Log Revenue</button>
+</form>
+</div>
+
+<!-- Admin Free Lookup -->
+<div style="background:#f8f9fa; border:1px solid #ced4da; padding:15px; border-radius:8px; margin-bottom:20px;">
+<h3 style="margin-top:0; color:#333; font-size:15px;">🔍 Admin Free Vehicle Lookup (0 Credits Deducted)</h3>
 {% if msg %}<div style="background:#ffdddd; color:#d8000c; padding:8px; border-radius:5px; margin-bottom:10px; font-size:13px;">{{ msg }}</div>{% endif %}
 <form method="POST">
-<input type="text" name="admin_vehicle_number" value="{{ searched_num }}" placeholder="Enter Vehicle Number (e.g. TN10BZ8419)" required style="width:73%; padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; font-weight:bold; text-transform:uppercase;">
-<button type="submit" style="width:25%; background:#dc3545; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; font-size:14px; cursor:pointer; float:right;">Lookup Free</button>
+<input type="text" name="admin_vehicle_number" value="{{ searched_num }}" placeholder="Enter Vehicle Number (e.g. TN10BZ8419)" required style="width:72%; padding:9px; border:1px solid #ccc; border-radius:5px; font-size:13px; font-weight:bold; text-transform:uppercase;">
+<button type="submit" style="width:26%; background:#dc3545; color:white; border:none; padding:9px; border-radius:5px; font-weight:bold; font-size:13px; cursor:pointer; float:right;">Lookup Free</button>
 </form>
 <div style="clear:both;"></div>
 </div>
@@ -280,22 +323,24 @@ ADMIN_TEMPLATE = '''
 </div>
 {% endif %}
 
-<h3 style="color:#333; font-size:16px; margin-bottom:8px;">Registered Dealers</h3>
+<h3 style="color:#333; font-size:15px; margin-bottom:8px;">Registered Dealers & Live Credit Balance</h3>
 <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
 <thead>
 <tr style="background:#343a40; color:white;">
 <th style="padding:8px;">Mobile</th>
+<th style="padding:8px;">Status</th>
 <th style="padding:8px;">Credits Left</th>
-<th style="padding:8px; text-align:center;">Action</th>
+<th style="padding:8px; text-align:center;">Quick Action</th>
 </tr>
 </thead>
 <tbody>
 {% for d in dealers %}
 <tr style="border-bottom:1px solid #dee2e6;">
 <td style="padding:8px; font-weight:bold;">{{ d.mobile }}</td>
-<td style="padding:8px;">{{ d.credits }}</td>
+<td style="padding:8px;">{{ d.status }}</td>
+<td style="padding:8px; font-weight:bold; color:#0d6efd;">{{ d.credits }} Credits</td>
 <td style="padding:8px; text-align:center;">
-<a href="/admin/send-credits-quick?mobile={{ d.mobile }}" style="background:#ffc107; color:black; padding:4px 8px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:11px;">+10 Credits</a>
+<a href="/admin/send-credits-quick?mobile={{ d.mobile }}" style="background:#ffc107; color:black; padding:4px 8px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:11px;">+10 Credits (₹2,000)</a>
 </td>
 </tr>
 {% endfor %}
@@ -406,8 +451,51 @@ def admin_panel():
     total_dealers = len(dealers)
     total_searches = conn.execute('SELECT COUNT(*) FROM club_logs').fetchone()[0]
 
+    # Total revenue calculation across all time
+    total_rev_res = conn.execute('SELECT SUM(amount) FROM recharge_records').fetchone()[0]
+    total_revenue = total_rev_res if total_rev_res else 0
+
+    # Date filtering for daily collection
+    today_str = datetime.now().strftime('%Y-%m-%d')
+    selected_date = request.args.get('filter_date', today_str)
+
+    date_rev_res = conn.execute('SELECT SUM(amount) FROM recharge_records WHERE DATE(payment_date) = ?', (selected_date,)).fetchone()[0]
+    date_revenue = date_rev_res if date_rev_res else 0
+
     conn.close()
-    return render_template_string(ADMIN_TEMPLATE, dealers=dealers, total_dealers=total_dealers, total_searches=total_searches, rc_data=rc_data, searched_num=searched_num, msg=msg)
+    return render_template_string(ADMIN_TEMPLATE, dealers=dealers, total_dealers=total_dealers, total_searches=total_searches, total_revenue=total_revenue, selected_date=selected_date, date_revenue=date_revenue, rc_data=rc_data, searched_num=searched_num, msg=msg)
+
+@app.route('/admin/send-custom-credits', methods=['POST'])
+def admin_send_custom_credits():
+    if 'dealer_mobile' not in session or session['dealer_mobile'] != ADMIN_MOBILE:
+        return redirect(url_for('dealer_login'))
+    
+    target_mobile = request.form.get('target_mobile', '').strip()
+    package_type = request.form.get('package_type', '')
+
+    if target_mobile and package_type:
+        if package_type == '300_1':
+            amount, credits = 300, 1
+        elif package_type == '2000_10':
+            amount, credits = 2000, 10
+        elif package_type == '5000_40':
+            amount, credits = 5000, 40
+        else:
+            amount, credits = 2000, 10
+
+        conn = get_db()
+        dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (target_mobile,)).fetchone()
+        if not dealer:
+            conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, ?, "Active")', (target_mobile, 'Dealer', credits))
+        else:
+            conn.execute('UPDATE dealers SET credits = credits + ? WHERE mobile = ?', (credits, target_mobile))
+        
+        # Record collection for daily collection and history reporting
+        conn.execute('INSERT INTO recharge_records (dealer_mobile, amount, credits_added) VALUES (?, ?, ?)', (target_mobile, amount, credits))
+        conn.commit()
+        conn.close()
+
+    return redirect(url_for('admin_panel'))
 
 @app.route('/admin/send-credits-quick')
 def admin_send_credits_quick():
@@ -417,6 +505,7 @@ def admin_send_credits_quick():
     if mobile:
         conn = get_db()
         conn.execute('UPDATE dealers SET credits = credits + 10 WHERE mobile = ?', (mobile,))
+        conn.execute('INSERT INTO recharge_records (dealer_mobile, amount, credits_added) VALUES (?, 2000, 10)', (mobile,))
         conn.commit()
         conn.close()
     return redirect(url_for('admin_panel'))
