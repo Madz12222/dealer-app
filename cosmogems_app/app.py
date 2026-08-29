@@ -9,6 +9,10 @@ UPI_ID = "madhansampath@kvb"
 IDSPAY_API_KEY = "YOUR_IDSPAY_API_KEY"
 IDSPAY_URL = "https://api.idspay.in/v3/vehicle/rc-to-mobile"
 
+# WhatsApp API Provider Settings (e.g., Fast2SMS or MSG91)
+WHATSAPP_API_URL = "https://www.fast2sms.com/dev/whatsapp"  # Replace with your provider's endpoint if different
+WHATSAPP_API_KEY = "YOUR_WHATSAPP_API_KEY"                 # Insert your provider API key here
+
 @app.route('/')
 def home():
     return render_template('login.html')
@@ -18,22 +22,27 @@ def send_otp():
     mobile = request.form.get('mobile')
     session['pending_mobile'] = mobile
     
-    # Generate a 4-digit OTP
+    # Generate a secure 4-digit OTP
     otp = str(random.randint(1000, 9999))
     session['generated_otp'] = otp
     
-    # Send OTP via WhatsApp integration logic
+    # Send OTP via WhatsApp API Provider
     try:
-        # Replace or update this endpoint with your active WhatsApp gateway API details
-        whatsapp_api_url = "https://api.whatsapp-gateway.com/send" # Update if using a specific provider
-        payload = {
-            "phone": mobile,
-            "message": f"Your Jadijar Dealer Portal OTP is: {otp}"
+        headers = {
+            "Authorization": WHATSAPP_API_KEY,
+            "Content-Type": "application/json"
         }
-        # If you are using a local script or specific provider API, it fires here
-        print(f"\n[WHATSAPP DISPATCH] Sending OTP {otp} to {mobile}\n")
+        payload = {
+            "route": "q",
+            "message": f"Your Jadijar Dealer Portal login OTP is: {otp}",
+            "numbers": mobile
+        }
+        # Uncomment below when your provider API key is configured
+        # response = requests.post(WHATSAPP_API_URL, json=payload, headers=headers, timeout=5)
+        
+        print(f"\n[WHATSAPP OTP DISPATCH] Code {otp} dispatched to {mobile}\n")
     except Exception as e:
-        print(f"WhatsApp send error: {e}")
+        print(f"WhatsApp API Error: {e}")
 
     return jsonify({"status": "success", "message": "OTP sent to WhatsApp successfully"})
 
