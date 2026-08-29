@@ -85,7 +85,7 @@ def index():
     <!DOCTYPE html>
     <html>
     <head>
-        <title>Jadijar Dealer Portal</title>
+        <title>Jadijar Dealer Dashboard Portal</title>
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <style>
             body { font-family: Arial, sans-serif; background: #f4f6f9; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
@@ -99,7 +99,7 @@ def index():
     </head>
     <body>
         <div class="card">
-            <h2>Dealer Portal Login</h2>
+            <h2>Dealer Dashboard Portal Login</h2>
             <p>Enter your mobile number to receive your OTP instantly.</p>
             
             <div id="step-mobile">
