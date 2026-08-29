@@ -30,15 +30,25 @@ def get_db():
 def init_db():
     conn = get_db()
     conn.execute('''
-        CREATE TABLE IF NOT EXISTS dealers (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT,
-            mobile TEXT UNIQUE,
-            credits INTEGER DEFAULT 5,
-            status TEXT DEFAULT 'Active',
-            payment_proof TEXT
-        )
+    CREATE TABLE IF NOT EXISTS dealers (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT,
+        mobile TEXT UNIQUE,
+        credits INTEGER DEFAULT 5,
+        status TEXT DEFAULT 'Active',
+        payment_proof TEXT,
+        is_verified INTEGER DEFAULT 0,
+        bonus_claimed INTEGER DEFAULT 0
+    )
     ''')
+    conn.execute('''
+    CREATE TABLE IF NOT EXISTS welcome_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        device_id TEXT UNIQUE,
+        mobile TEXT
+    )
+    ''')
+
     conn.execute('''
         CREATE TABLE IF NOT EXISTS club_logs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -380,11 +390,16 @@ def dealer_login():
     return render_template_string(LOGIN_TEMPLATE, msg=msg)
 
 @app.route('/dealer/verify-otp', methods=['GET', 'POST'])
+
 def verify_otp():
     msg = ""
     mobile = session.get('pending_mobile')
     if not mobile:
         return redirect(url_for('dealer_login'))
+
+    device_id = request.cookies.get('device_token')
+    if not device_id:
+        device_id = request.remote_addr + "_" + request.headers.get('User-Agent', 'unknown')[:30]
 
     if request.method == 'POST':
         entered_otp = request.form.get('otp')
@@ -392,16 +407,28 @@ def verify_otp():
             session.pop('pending_mobile', None)
             session['dealer_mobile'] = mobile
             otp_storage.pop(mobile, None)
-            return redirect(url_for('dealer_dashboard'))
+
+            conn = get_db()
+            dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
+            device_claimed = conn.execute('SELECT * FROM welcome_logs WHERE device_id = ?', (device_id,)).fetchone()
+
+            if dealer and not dealer['bonus_claimed'] and not device_claimed:
+                conn.execute('UPDATE dealers SET credits = 5, bonus_claimed = 1, is_verified = 1 WHERE mobile = ?', (mobile,))
+                conn.execute('INSERT INTO welcome_logs (device_id, mobile) VALUES (?, ?)', (device_id, mobile))
+                conn.commit()
+            elif dealer and not dealer['is_verified']:
+                conn.execute('UPDATE dealers SET is_verified = 1 WHERE mobile = ?', (mobile,))
+                conn.commit()
+            
+            conn.close()
+
+            resp = redirect(url_for('dealer_dashboard'))
+            resp.set_cookie('device_token', device_id, max_age=60*60*24*365)
+            return resp
         else:
             msg = "Invalid OTP."
 
     return render_template_string(VERIFY_TEMPLATE, msg=msg, mobile=mobile, debug_otp=otp_storage.get(mobile, ''))
-
-@app.route('/dealer/dashboard', methods=['GET', 'POST'])
-def dealer_dashboard():
-    if 'dealer_mobile' not in session:
-        return redirect(url_for('dealer_login'))
 
     conn = get_db()
     dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
