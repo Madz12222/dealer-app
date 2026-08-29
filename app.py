@@ -18,6 +18,9 @@ API_ID = "APID3192"
 API_KEY = "99310f2f-6808-4da5-be3e-84143ed8228d"
 TOKEN_ID = "9PCAflhNoBWFLnUEQuicQuYkkn2ZANd4"
 
+# Admin configuration
+ADMIN_MOBILE = "8122522222"
+
 def get_db():
     conn = sqlite3.connect('dealer_app.db')
     conn.row_factory = sqlite3.Row
@@ -40,7 +43,7 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             dealer_mobile TEXT,
             vehicle_number TEXT,
-            search_date TEXT
+            search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
     ''')
     conn.commit()
@@ -64,20 +67,15 @@ def fetch_rc_from_idspay(vehicle_number):
             res_json = response.json()
             if res_json.get("status", {}).get("code") == 200 or "data" in res_json:
                 outer_data = res_json.get("data", {})
-                
-                # Grab mobileNo from the outer data block level
                 outer_mobile = outer_data.get("mobileNo")
-                
                 inner_data = outer_data.get("data", {})
                 if isinstance(inner_data, dict):
                     if outer_mobile:
                         inner_data["mobileNumber"] = outer_mobile
                     return inner_data
-                
                 if outer_mobile and isinstance(outer_data, dict):
                     outer_data["mobileNumber"] = outer_mobile
                 return outer_data
-                
         return {
             "regNo": vehicle_number.upper(),
             "error": "Failed to fetch from IDSPay",
@@ -139,8 +137,13 @@ DASHBOARD_TEMPLATE = '''
             <div style="font-size:12px; opacity:0.9;">WALLET</div>
             <div style="font-size:20px; font-weight:bold;">{{ dealer.credits }} Checks</div>
         </div>
-        <a href="#recharge" style="background:#ffc107; color:#000; padding:8px 15px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Recharge</a>
-        <a href="/dealer/logout" style="color:white; text-decoration:none; font-size:13px; margin-left:10px;">Logout</a>
+        <div>
+            {% if is_admin %}
+            <a href="/admin" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px; margin-right:5px;">🛡️ Admin Panel</a>
+            {% endif %}
+            <a href="#recharge" style="background:#ffc107; color:#000; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Recharge</a>
+            <a href="/dealer/logout" style="color:white; text-decoration:none; font-size:13px; margin-left:8px;">Logout</a>
+        </div>
     </div>
 
     <div style="background:white; border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:20px;">
@@ -187,7 +190,6 @@ DASHBOARD_TEMPLATE = '''
             </div>
         </div>
 
-        <!-- Bank Details Box (Hidden by default, shown on package click) -->
         <div id="bankDetailsBox" style="display:none; background:white; border:2px dashed #0d6efd; padding:12px; border-radius:6px; margin-top:10px; text-align:center;">
             <h5 id="selectedPackageTitle" style="margin:0 0 5px 0; color:#0d6efd; font-size:15px;"></h5>
             <p style="margin:4px 0; font-size:13px; color:#333;"><b>UPI ID / VPA:</b> <span id="upiIdText" style="color:#d63384; font-family:monospace; font-size:15px; font-weight:bold;">madhansampath@kvb</span></p>
@@ -216,6 +218,123 @@ function showBankDetails(amount, credits) {
 }
 </script>
 
+</body>
+</html>
+'''
+
+ADMIN_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head><title>Admin Panel - Cosmogems Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="font-family:sans-serif; background:#f4f4f9; margin:0; padding:15px;">
+<div style="max-width:800px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+    
+    <div style="display:flex; justify-content:space-between; align-items:center; background:#343a40; padding:12px 15px; border-radius:8px; color:white; margin-bottom:20px;">
+        <h2 style="margin:0; font-size:20px;">🛡️ Admin Command Panel</h2>
+        <div>
+            <a href="/dealer/dashboard" style="background:#007bff; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px; margin-right:5px;">🏠 Dashboard</a>
+            <a href="/dealer/logout" style="background:#dc3545; color:white; padding:8px 12px; border-radius:5px; text-decoration:none; font-weight:bold; font-size:13px;">Logout</a>
+        </div>
+    </div>
+
+    <!-- Quick Stats Cards including IDSPay Gateway Status -->
+    <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
+        <div style="flex:1; background:#e8f4fd; border:1px solid #b8daff; padding:15px; border-radius:8px; text-align:center; min-width:140px;">
+            <div style="font-size:12px; color:#004085; font-weight:bold;">TOTAL DEALERS</div>
+            <div style="font-size:24px; font-weight:bold; color:#0056b3; margin-top:5px;">{{ total_dealers }}</div>
+        </div>
+        <div style="flex:1; background:#e2f0d9; border:1px solid #c3e6cb; padding:15px; border-radius:8px; text-align:center; min-width:140px;">
+            <div style="font-size:12px; color:#155724; font-weight:bold;">TOTAL CHECKS</div>
+            <div style="font-size:24px; font-weight:bold; color:#28a745; margin-top:5px;">{{ total_searches }}</div>
+        </div>
+        <div style="flex:1; background:#fff3cd; border:1px solid #ffeeba; padding:15px; border-radius:8px; text-align:center; min-width:140px;">
+            <div style="font-size:12px; color:#856404; font-weight:bold;">EST. COLLECTION</div>
+            <div style="font-size:24px; font-weight:bold; color:#d39e00; margin-top:5px;">₹{{ total_collection }}</div>
+        </div>
+        <div style="flex:1; background:#f8d7da; border:1px solid #f5c6cb; padding:15px; border-radius:8px; text-align:center; min-width:140px;">
+            <div style="font-size:12px; color:#721c24; font-weight:bold;">IDSPAY API GATEWAY</div>
+            <div style="font-size:15px; font-weight:bold; color:#721c24; margin-top:8px;"><a href="https://apiuser.idspay.in/" target="_blank" style="color:#721c24; text-decoration:underline;">Check Portal ➔</a></div>
+        </div>
+    </div>
+
+    <!-- Free Admin Vehicle Lookup -->
+    <div style="background:#f8f9fa; border:1px solid #ced4da; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <h3 style="margin-top:0; color:#333; font-size:16px;">🔍 Admin Free Vehicle Lookup (0 Credits Deducted)</h3>
+        {% if msg %}<div style="background:#ffdddd; color:#d8000c; padding:8px; border-radius:5px; margin-bottom:10px; font-size:13px;">{{ msg }}</div>{% endif %}
+        <form method="POST">
+            <input type="text" name="admin_vehicle_number" value="{{ searched_num }}" placeholder="Enter Vehicle Number (e.g. TN10BZ8419)" required style="width:73%; padding:10px; border:1px solid #ccc; border-radius:5px; font-size:14px; font-weight:bold; text-transform:uppercase;">
+            <button type="submit" style="width:25%; background:#dc3545; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; font-size:14px; cursor:pointer; float:right;">Lookup Free</button>
+        </form>
+        <div style="clear:both;"></div>
+    </div>
+
+    {% if rc_data %}
+    <div style="background:#e8f4fd; border:1px solid #b8daff; padding:15px; border-radius:8px; margin-bottom:20px;">
+        <h4 style="margin:0 0 10px 0; color:#004085; border-bottom:1px solid #b8daff; padding-bottom:5px;">RC Verification Result</h4>
+        <table style="width:100%; font-size:13px; color:#333; border-collapse:collapse;">
+            {% for key, value in rc_data.items() %}
+            <tr style="border-bottom:1px solid #d0e1fd;">
+                <td style="padding:6px 0; font-weight:bold; text-transform:capitalize; width:45%;">{{ key.replace('_', ' ') }}</td>
+                <td style="padding:6px 0; text-align:right; {% if 'mobile' in key.lower() and value and value != 'N/A' and value != 'None' and value != 'null' %}color:#0d6efd; font-weight:bold; font-size:14px;{% endif %}">
+                    {{ value if value is not none and value != '' and value != 'null' else 'N/A' }}
+                </td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+    {% endif %}
+
+    <!-- Dealers Management Table -->
+    <h3 style="color:#333; font-size:16px; margin-bottom:8px;">Registered Dealers & Credits</h3>
+    <div style="overflow-x:auto; margin-bottom:20px;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+                <tr style="background:#343a40; color:white;">
+                    <th style="padding:8px;">Mobile</th>
+                    <th style="padding:8px;">Credits Left</th>
+                    <th style="padding:8px;">Status</th>
+                    <th style="padding:8px; text-align:center;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for d in dealers %}
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:8px; font-weight:bold;">{{ d.mobile }}</td>
+                    <td style="padding:8px;">{{ d.credits }}</td>
+                    <td style="padding:8px;"><span style="background:#28a745; color:white; padding:2px 6px; border-radius:4px; font-size:11px;">{{ d.status }}</span></td>
+                    <td style="padding:8px; text-align:center;">
+                        <a href="/admin/add-credits?mobile={{ d.mobile }}" style="background:#ffc107; color:black; padding:4px 8px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:11px;">+10 Credits</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Search Logs History -->
+    <h3 style="color:#333; font-size:16px; margin-bottom:8px;">Recent Vehicle Search Logs</h3>
+    <div style="overflow-x:auto;">
+        <table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+            <thead>
+                <tr style="background:#6c757d; color:white;">
+                    <th style="padding:8px;">Dealer Mobile</th>
+                    <th style="padding:8px;">Vehicle Number</th>
+                    <th style="padding:8px;">Time</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for log in logs %}
+                <tr style="border-bottom:1px solid #dee2e6;">
+                    <td style="padding:8px; font-weight:bold;">{{ log.dealer_mobile }}</td>
+                    <td style="padding:8px; color:#0056b3; font-weight:bold;">{{ log.vehicle_number }}</td>
+                    <td style="padding:8px; color:#666; font-size:12px;">{{ log.search_date }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+</div>
 </body>
 </html>
 '''
@@ -298,7 +417,51 @@ def dealer_dashboard():
             msg = "Insufficient credits! Please recharge using the packages below."
             
     conn.close()
-    return render_template_string(DASHBOARD_TEMPLATE, dealer=dealer, rc_data=rc_data, msg=msg, searched_num=searched_num)
+    is_admin = (session.get('dealer_mobile') == ADMIN_MOBILE)
+    return render_template_string(DASHBOARD_TEMPLATE, dealer=dealer, rc_data=rc_data, msg=msg, searched_num=searched_num, is_admin=is_admin)
+
+@app.route('/admin', methods=['GET', 'POST'])
+def admin_panel():
+    if 'dealer_mobile' not in session or session['dealer_mobile'] != ADMIN_MOBILE:
+        return redirect(url_for('dealer_login'))
+        
+    conn = get_db()
+    msg = ""
+    rc_data = None
+    searched_num = ""
+    
+    if request.method == 'POST':
+        vehicle_number = request.form.get('admin_vehicle_number', '').strip()
+        searched_num = vehicle_number
+        if vehicle_number:
+            conn.execute('INSERT INTO club_logs (dealer_mobile, vehicle_number) VALUES (?, ?)', (ADMIN_MOBILE, vehicle_number))
+            conn.commit()
+            rc_data = fetch_rc_from_idspay(vehicle_number)
+        else:
+            msg = "Please enter a valid vehicle number."
+
+    dealers = conn.execute('SELECT * FROM dealers').fetchall()
+    logs = conn.execute('SELECT * FROM club_logs ORDER BY id DESC LIMIT 20').fetchall()
+    
+    total_dealers = len(dealers)
+    total_searches = conn.execute('SELECT COUNT(*) FROM club_logs').fetchone()[0]
+    total_collection = total_searches * 200
+    
+    conn.close()
+    return render_template_string(ADMIN_TEMPLATE, dealers=dealers, logs=logs, total_dealers=total_dealers, total_searches=total_searches, total_collection=total_collection, rc_data=rc_data, searched_num=searched_num, msg=msg)
+
+@app.route('/admin/add-credits')
+def admin_add_credits():
+    if 'dealer_mobile' not in session or session['dealer_mobile'] != ADMIN_MOBILE:
+        return redirect(url_for('dealer_login'))
+    
+    mobile = request.args.get('mobile')
+    if mobile:
+        conn = get_db()
+        conn.execute('UPDATE dealers SET credits = credits + 10 WHERE mobile = ?', (mobile,))
+        conn.commit()
+        conn.close()
+    return redirect(url_for('admin_panel'))
 
 @app.route('/dealer/logout')
 def dealer_logout():
