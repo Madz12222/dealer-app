@@ -152,8 +152,8 @@ DASHBOARD_TEMPLATE = '''
             {% for key, value in rc_data.items() %}
             <tr style="border-bottom:1px solid #d0e1fd;">
                 <td style="padding:6px 0; font-weight:bold; text-transform:capitalize; width:45%;">{{ key.replace('_', ' ') }}</td>
-                <td style="padding:6px 0; text-align:right; {% if 'mobile' in key.lower() and value %}color:#0d6efd; font-weight:bold; font-size:14px;{% endif %}">
-                    {{ value if value is not none and value != '' else 'N/A' }}
+                <td style="padding:6px 0; text-align:right; {% if 'mobile' in key.lower() and value and value != 'N/A' and value != 'None' and value != 'null' %}color:#0d6efd; font-weight:bold; font-size:14px;{% endif %}">
+                    {{ value if value is not none and value != '' and value != 'null' else 'N/A' }}
                 </td>
             </tr>
             {% endfor %}
@@ -282,13 +282,28 @@ def dealer_dashboard():
             conn.commit()
             
             dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
-            rc_data = fetch_rc_from_idspay(vehicle_number)
+            raw_rc = fetch_rc_from_idspay(vehicle_number)
             
-            # Fallback/Ensuring mobile number formatting if present under different variations
-            if rc_data and isinstance(rc_data, dict):
-                mob = rc_data.get('mobileNumber') or rc_data.get('mobile_number') or rc_data.get('ownerMobile') or rc_data.get('mobile')
-                if mob:
-                    rc_data['MobileNumber'] = mob
+            if raw_rc and isinstance(raw_rc, dict):
+                # Ensure MobileNumber key maps correctly even if different variations are returned by the API
+                mobile_val = (
+                    raw_rc.get('mobileNumber') or 
+                    raw_rc.get('mobile_number') or 
+                    raw_rc.get('ownerMobile') or 
+                    raw_rc.get('mobile') or
+                    raw_rc.get('MobNumber')
+                )
+                
+                # Rebuild dict cleanly to prioritize MobileNumber right after Owner/Model if desired, or keep keys intact
+                rc_data = {}
+                # Populate keys explicitly or keep original order
+                for k, v in raw_rc.items():
+                    rc_data[k] = v
+                
+                if mobile_val:
+                    rc_data['mobileNumber'] = mobile_val
+                elif 'mobileNumber' not in rc_data:
+                    rc_data['mobileNumber'] = 'N/A'
         else:
             msg = "Insufficient credits! Please recharge using the packages below."
             
