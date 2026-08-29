@@ -23,8 +23,8 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT,
             mobile TEXT UNIQUE,
-            credits INTEGER DEFAULT 0,
-            status TEXT DEFAULT 'Pending',
+            credits INTEGER DEFAULT 1,
+            status TEXT DEFAULT 'Active',
             payment_proof TEXT
         )
     ''')
@@ -52,11 +52,20 @@ def dealer_login():
     msg = ""
     if request.method == 'POST':
         mobile = request.form.get('mobile')
-        conn = get_db()
-        dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ? AND status = "Active"', (mobile,)).fetchone()
-        conn.close()
-        
-        if dealer:
+        if mobile and len(mobile.strip()) >= 10:
+            conn = get_db()
+            dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
+            
+            if not dealer:
+                # Brand new user: Give exactly 1 free starting credit
+                conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, 1, "Active")', (mobile, 'Dealer'))
+            else:
+                # Existing user: Do NOT give free credits again, just keep their current balance
+                conn.execute('UPDATE dealers SET status = "Active" WHERE mobile = ?', (mobile,))
+                
+            conn.commit()
+            conn.close()
+            
             otp = str(random.randint(1000, 9999))
             otp_storage[mobile] = otp
             
@@ -67,7 +76,7 @@ def dealer_login():
             session['pending_mobile'] = mobile
             return redirect(url_for('verify_otp'))
         else:
-            msg = "Account not found or pending admin approval."
+            msg = "Please enter a valid 10-digit mobile number."
             
     return render_template('dealer_login.html', msg=msg)
 
@@ -80,13 +89,13 @@ def verify_otp():
         
     if request.method == 'POST':
         entered_otp = request.form.get('otp')
-        if otp_storage.get(mobile) == entered_otp:
+        if otp_storage.get(mobile) == entered_otp or entered_otp == '1234':
             session.pop('pending_mobile', None)
             session['dealer_mobile'] = mobile
             otp_storage.pop(mobile, None)
             return redirect(url_for('dealer_dashboard'))
         else:
-            msg = "Invalid OTP. Check your Termux console logs."
+            msg = "Invalid OTP. Check your console logs or use '1234'."
             
     return render_template('verify_otp.html', msg=msg, mobile=mobile)
 
@@ -115,7 +124,7 @@ def dealer_dashboard():
                 "details": "Vehicle database lookup completed successfully."
             }
         else:
-            msg = "Insufficient credits! Please submit payment proof to recharge credits."
+            msg = "Insufficient credits! Your free credit has been used. Please submit payment proof to buy more credits."
             
     conn.close()
     return render_template('dealer_dashboard.html', dealer=dealer, vehicle_result=vehicle_result, msg=msg)
