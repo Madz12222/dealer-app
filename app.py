@@ -85,11 +85,11 @@ LOGIN_TEMPLATE = '''
 <body style="font-family:sans-serif; background:#f4f4f9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
 <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:350px; text-align:center;">
     <h2 style="color:#0056b3;">Cosmogems Club</h2>
-    <p style="color:#666; font-size:14px;">Enter your mobile number to receive OTP.</p>
+    <p style="color:#666; font-size:14px;">Enter your mobile number to generate OTP.</p>
     {% if msg %}<p style="color:red; font-size:13px;">{{ msg }}</p>{% endif %}
     <form method="POST">
         <input type="text" name="mobile" placeholder="10-digit mobile number" required style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:5px; box-sizing:border-box;">
-        <button type="submit" style="width:100%; background:#0056b3; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Send WhatsApp OTP</button>
+        <button type="submit" style="width:100%; background:#0056b3; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Generate OTP</button>
     </form>
 </div>
 </body>
@@ -103,7 +103,8 @@ VERIFY_TEMPLATE = '''
 <body style="font-family:sans-serif; background:#f4f4f9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
 <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:350px; text-align:center;">
     <h2 style="color:#0056b3;">Verify OTP</h2>
-    <p style="color:#666; font-size:14px;">Random OTP generated for {{ mobile }} <br><small style="color:green;">(Check Termux Console logs)</small></p>
+    <p style="color:#666; font-size:14px;">Generated OTP for {{ mobile }}:</p>
+    <div style="font-size:28px; font-weight:bold; color:#28a745; background:#e8f5e9; padding:10px; border-radius:5px; margin:10px 0; letter-spacing:5px;">{{ debug_otp }}</div>
     {% if msg %}<p style="color:red; font-size:13px;">{{ msg }}</p>{% endif %}
     <form method="POST">
         <input type="text" name="otp" placeholder="Enter 4-digit OTP" required style="width:100%; padding:10px; margin:10px 0; border:1px solid #ccc; border-radius:5px; box-sizing:border-box; text-align:center; font-size:18px; letter-spacing:5px;">
@@ -192,12 +193,9 @@ def dealer_login():
             conn.commit()
             conn.close()
             
+            # Generate a fresh random 4-digit OTP for this specific mobile number
             otp = str(random.randint(1000, 9999))
             otp_storage[mobile] = otp
-            
-            print("\n" + "="*50)
-            print(f" [TERMUX OTP LOG] Mobile: {mobile} | Generated Random OTP: {otp}")
-            print("="*50 + "\n")
             
             session['pending_mobile'] = mobile
             return redirect(url_for('verify_otp'))
@@ -221,9 +219,9 @@ def verify_otp():
             otp_storage.pop(mobile, None)
             return redirect(url_for('dealer_dashboard'))
         else:
-            msg = "Invalid OTP. Please check your Termux console logs for the correct random code."
+            msg = "Invalid OTP. Please enter the correct code shown above."
             
-    return render_template_string(VERIFY_TEMPLATE, msg=msg, mobile=mobile)
+    return render_template_string(VERIFY_TEMPLATE, msg=msg, mobile=mobile, debug_otp=otp_storage.get(mobile, ''))
 
 @app.route('/dealer/dashboard', methods=['GET', 'POST'])
 def dealer_dashboard():
