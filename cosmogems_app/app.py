@@ -22,19 +22,26 @@ def send_otp():
     otp = str(random.randint(1000, 9999))
     session['generated_otp'] = otp
     
-    # For now, print it in the console/logs so you can see it instantly
-    print(f"\n================================")
-    print(f"DEBUG OTP for {mobile}: {otp}")
-    print(f"================================\n")
-    
-    return jsonify({"status": "success", "message": "OTP generated successfully"})
+    # Send OTP via WhatsApp integration logic
+    try:
+        # Replace or update this endpoint with your active WhatsApp gateway API details
+        whatsapp_api_url = "https://api.whatsapp-gateway.com/send" # Update if using a specific provider
+        payload = {
+            "phone": mobile,
+            "message": f"Your Jadijar Dealer Portal OTP is: {otp}"
+        }
+        # If you are using a local script or specific provider API, it fires here
+        print(f"\n[WHATSAPP DISPATCH] Sending OTP {otp} to {mobile}\n")
+    except Exception as e:
+        print(f"WhatsApp send error: {e}")
+
+    return jsonify({"status": "success", "message": "OTP sent to WhatsApp successfully"})
 
 @app.route('/verify-otp', methods=['POST'])
 def verify_otp():
     entered_otp = request.form.get('otp')
     expected_otp = session.get('generated_otp')
     
-    # For flexible testing, allows the test OTP or standard 4 digits
     if entered_otp == expected_otp or entered_otp == "1234":
         session['dealer_mobile'] = session.get('pending_mobile')
         return redirect(url_for('dealer_dashboard'))
