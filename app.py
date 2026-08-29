@@ -27,9 +27,7 @@ def get_db():
     conn.row_factory = sqlite3.Row
     return conn
 
-
- 
-    def init_db():
+def init_db():
     conn = get_db()
     conn.execute('''
     CREATE TABLE IF NOT EXISTS dealers (
@@ -83,24 +81,6 @@ def get_db():
 
 init_db()
 
-    # Safe column checks for existing databases
-    try:
-        conn.execute('ALTER TABLE dealers ADD COLUMN is_verified INTEGER DEFAULT 0')
-    except sqlite3.OperationalError:
-        pass
-        
-    try:
-        conn.execute('ALTER TABLE dealers ADD COLUMN bonus_claimed INTEGER DEFAULT 0')
-    except sqlite3.OperationalError:
-        pass
-        
-    conn.commit()
-    conn.close()
-
-init_db()
-
-init_db()
-
 def fetch_rc_from_idspay(vehicle_number):
     headers = {
         "Content-Type": "application/json"
@@ -123,18 +103,18 @@ def fetch_rc_from_idspay(vehicle_number):
             actual_data = data_node.get("data", data_node)
             if not isinstance(actual_data, dict):
                 actual_data = {"response": str(actual_data)}
-
+            
             mobile_no = data_node.get("mobileNo") or actual_data.get("mobileNo") or actual_data.get("mobileNumber")
             if mobile_no:
                 actual_data["mobileNumber"] = mobile_no
-
+            
             cleaned_rc = {}
             for k, v in actual_data.items():
                 if k not in ["api_id", "api_key", "token_id"]:
                     cleaned_rc[str(k)] = v if v is not None else "N/A"
             
             return cleaned_rc
-
+        
         return {
             "regNo": vehicle_number.upper(),
             "error": f"API HTTP Error {response.status_code}",
@@ -265,15 +245,15 @@ DASHBOARD_TEMPLATE = '''
 </div>
 <script>
 function showBankDetails(amount, credits, amountNum) {
-var box = document.getElementById('bankDetailsBox');
-var title = document.getElementById('selectedPackageTitle');
-var whatsappBtn = document.getElementById('whatsappBtn');
-title.innerText = "Selected: " + amount + " (" + credits + " Credits)";
-box.style.display = 'block';
-var dealerMobile = "{{ dealer.mobile }}";
-var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + " Credits. UPI ID: madhansampath@kvb. Dealer Mobile: " + dealerMobile;
-whatsappBtn.href = "https://wa.me/?text=" + encodeURIComponent(msg);
-box.scrollIntoView({ behavior: 'smooth' });
+    var box = document.getElementById('bankDetailsBox');
+    var title = document.getElementById('selectedPackageTitle');
+    var whatsappBtn = document.getElementById('whatsappBtn');
+    title.innerText = "Selected: " + amount + " (" + credits + " Credits)";
+    box.style.display = 'block';
+    var dealerMobile = "{{ dealer.mobile }}";
+    var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + " Credits. UPI ID: madhansampath@kvb. Dealer Mobile: " + dealerMobile;
+    whatsappBtn.href = "https://wa.me/?text=" + encodeURIComponent(msg);
+    box.scrollIntoView({ behavior: 'smooth' });
 }
 </script>
 </body>
@@ -310,7 +290,6 @@ ADMIN_TEMPLATE = '''
 </div>
 </div>
 
-<!-- Date-wise Filter Section -->
 <div style="background:#f8f9fa; border:1px solid #ced4da; padding:15px; border-radius:8px; margin-bottom:20px;">
 <h3 style="margin-top:0; color:#333; font-size:15px;">📅 Filter Daily Collection & History by Date</h3>
 <form method="GET" action="/admin" style="display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
@@ -323,7 +302,6 @@ Collection for <b>{{ selected_date }}</b>: <span style="color:#28a745; font-weig
 </div>
 </div>
 
-<!-- Manual Credit Sender to Any Number -->
 <div style="background:#eef2f7; border:1px solid #cbd5e1; padding:15px; border-radius:8px; margin-bottom:20px;">
 <h3 style="margin-top:0; color:#1e293b; font-size:15px;">⚡ Custom Credit Sender (Any Mobile Number)</h3>
 {% if recharge_msg %}<div style="background:#d1e7dd; color:#0f5132; padding:8px; border-radius:5px; margin-bottom:10px; font-size:13px;">{{ recharge_msg }}</div>{% endif %}
@@ -338,7 +316,6 @@ Collection for <b>{{ selected_date }}</b>: <span style="color:#28a745; font-weig
 </form>
 </div>
 
-<!-- Admin Free Lookup -->
 <div style="background:#f8f9fa; border:1px solid #ced4da; padding:15px; border-radius:8px; margin-bottom:20px;">
 <h3 style="margin-top:0; color:#333; font-size:15px;">🔍 Admin Free Vehicle Lookup (0 Credits Deducted)</h3>
 {% if msg %}<div style="background:#ffdddd; color:#d8000c; padding:8px; border-radius:5px; margin-bottom:10px; font-size:13px;">{{ msg }}</div>{% endif %}
@@ -407,8 +384,8 @@ def dealer_login():
             conn = get_db()
             dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
             if not dealer:
-                conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, 5, "Active")', (mobile, 'Dealer'))
-            conn.commit()
+                conn.execute('INSERT INTO dealers (mobile, name, credits, status, is_verified, bonus_claimed) VALUES (?, ?, 5, "Active", 0, 0)', (mobile, 'Dealer'))
+                conn.commit()
             conn.close()
 
             otp = str(random.randint(1000, 9999))
@@ -420,7 +397,6 @@ def dealer_login():
     return render_template_string(LOGIN_TEMPLATE, msg=msg)
 
 @app.route('/dealer/verify-otp', methods=['GET', 'POST'])
-
 def verify_otp():
     msg = ""
     mobile = session.get('pending_mobile')
@@ -459,6 +435,11 @@ def verify_otp():
             msg = "Invalid OTP."
 
     return render_template_string(VERIFY_TEMPLATE, msg=msg, mobile=mobile, debug_otp=otp_storage.get(mobile, ''))
+
+@app.route('/dealer/dashboard', methods=['GET', 'POST'])
+def dealer_dashboard():
+    if 'dealer_mobile' not in session:
+        return redirect(url_for('dealer_login'))
 
     conn = get_db()
     dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
@@ -508,11 +489,9 @@ def admin_panel():
     total_dealers = len(dealers)
     total_searches = conn.execute('SELECT COUNT(*) FROM club_logs').fetchone()[0]
 
-    # Total revenue calculation across all time
     total_rev_res = conn.execute('SELECT SUM(amount) FROM recharge_records').fetchone()[0]
     total_revenue = total_rev_res if total_rev_res else 0
 
-    # Date filtering for daily collection
     today_str = datetime.now().strftime('%Y-%m-%d')
     selected_date = request.args.get('filter_date', today_str)
 
@@ -526,7 +505,7 @@ def admin_panel():
 def admin_send_custom_credits():
     if 'dealer_mobile' not in session or session['dealer_mobile'] != ADMIN_MOBILE:
         return redirect(url_for('dealer_login'))
-    
+
     target_mobile = request.form.get('target_mobile', '').strip()
     package_type = request.form.get('package_type', '')
 
@@ -543,11 +522,10 @@ def admin_send_custom_credits():
         conn = get_db()
         dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (target_mobile,)).fetchone()
         if not dealer:
-            conn.execute('INSERT INTO dealers (mobile, name, credits, status) VALUES (?, ?, ?, "Active")', (target_mobile, 'Dealer', credits))
+            conn.execute('INSERT INTO dealers (mobile, name, credits, status, is_verified, bonus_claimed) VALUES (?, ?, ?, "Active", 1, 1)', (target_mobile, 'Dealer', credits))
         else:
             conn.execute('UPDATE dealers SET credits = credits + ? WHERE mobile = ?', (credits, target_mobile))
-        
-        # Record collection for daily collection and history reporting
+
         conn.execute('INSERT INTO recharge_records (dealer_mobile, amount, credits_added) VALUES (?, ?, ?)', (target_mobile, amount, credits))
         conn.commit()
         conn.close()
