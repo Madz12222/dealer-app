@@ -34,7 +34,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT,
         mobile TEXT UNIQUE,
-        credits INTEGER DEFAULT 5,
+        credits INTEGER DEFAULT 2,
         status TEXT DEFAULT 'Active',
         payment_proof TEXT,
         is_verified INTEGER DEFAULT 0,
@@ -53,6 +53,7 @@ def init_db():
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         dealer_mobile TEXT,
         vehicle_number TEXT,
+        credits_left INTEGER DEFAULT 0,
         search_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
     ''')
@@ -73,6 +74,11 @@ def init_db():
         
     try:
         conn.execute('ALTER TABLE dealers ADD COLUMN bonus_claimed INTEGER DEFAULT 0')
+    except sqlite3.OperationalError:
+        pass
+
+    try:
+        conn.execute('ALTER TABLE club_logs ADD COLUMN credits_left INTEGER DEFAULT 0')
     except sqlite3.OperationalError:
         pass
         
@@ -130,10 +136,10 @@ def fetch_rc_from_idspay(vehicle_number):
 LOGIN_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Login - Cosmogems Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<head><title>Login - Madzinu Financiar Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family:sans-serif; background:#f4f4f9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
 <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:350px; text-align:center;">
-<h2 style="color:#0056b3;">Cosmogems Club</h2>
+<h2 style="color:#0056b3;">Madzinu Financiar Club</h2>
 <p style="color:#666; font-size:14px;">Enter your mobile number to generate OTP.</p>
 {% if msg %}<p style="color:red; font-size:13px;">{{ msg }}</p>{% endif %}
 <form method="POST">
@@ -148,7 +154,7 @@ LOGIN_TEMPLATE = '''
 VERIFY_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Verify OTP - Cosmogems Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<head><title>Verify OTP - Madzinu Financiar Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family:sans-serif; background:#f4f4f9; display:flex; justify-content:center; align-items:center; height:100vh; margin:0;">
 <div style="background:white; padding:30px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1); width:100%; max-width:350px; text-align:center;">
 <h2 style="color:#0056b3;">Verify OTP</h2>
@@ -167,7 +173,7 @@ VERIFY_TEMPLATE = '''
 DASHBOARD_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Dealer Dashboard - Cosmogems Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<head><title>Financier Dashboard - Madzinu Financiar Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family:sans-serif; background:#f4f4f9; margin:0; padding:15px;">
 <div style="max-width:550px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
@@ -187,7 +193,7 @@ DASHBOARD_TEMPLATE = '''
 
 <div style="background:white; border:1px solid #ddd; padding:15px; border-radius:8px; margin-bottom:20px;">
 <h3 style="margin-top:0; color:#333; font-size:18px;">Instant RC Lookup</h3>
-<p style="font-size:13px; color:#666; margin-bottom:8px;">Dealer Mobile: <b>{{ dealer.mobile }}</b></p>
+<p style="font-size:13px; color:#666; margin-bottom:8px;">Financier Mobile: <b>{{ dealer.mobile }}</b></p>
 
 {% if msg %}<div style="background:#ffdddd; color:#d8000c; padding:10px; border-radius:5px; margin-bottom:15px; font-size:13px;">{{ msg }}</div>{% endif %}
 
@@ -251,7 +257,7 @@ function showBankDetails(amount, credits, amountNum) {
     title.innerText = "Selected: " + amount + " (" + credits + " Credits)";
     box.style.display = 'block';
     var dealerMobile = "{{ dealer.mobile }}";
-    var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + " Credits. UPI ID: madhansampath@kvb. Dealer Mobile: " + dealerMobile;
+    var msg = "Hello Admin, I have completed the payment of " + amount + " for " + credits + " Credits. UPI ID: madhansampath@kvb. Financier Mobile: " + dealerMobile;
     whatsappBtn.href = "https://wa.me/?text=" + encodeURIComponent(msg);
     box.scrollIntoView({ behavior: 'smooth' });
 }
@@ -263,9 +269,9 @@ function showBankDetails(amount, credits, amountNum) {
 ADMIN_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
-<head><title>Admin Panel - Cosmogems Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<head><title>Admin Panel - Madzinu Financiar Club</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body style="font-family:sans-serif; background:#f4f4f9; margin:0; padding:15px;">
-<div style="max-width:850px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
+<div style="max-width:950px; margin:auto; background:white; padding:20px; border-radius:10px; box-shadow:0 4px 10px rgba(0,0,0,0.1);">
 
 <div style="display:flex; justify-content:space-between; align-items:center; background:#343a40; padding:12px 15px; border-radius:8px; color:white; margin-bottom:20px;">
 <h2 style="margin:0; font-size:18px;">🛡️ Admin Command Panel</h2>
@@ -277,7 +283,7 @@ ADMIN_TEMPLATE = '''
 
 <div style="display:flex; gap:10px; margin-bottom:20px; flex-wrap:wrap;">
 <div style="flex:1; background:#e8f4fd; border:1px solid #b8daff; padding:15px; border-radius:8px; text-align:center;">
-<div style="font-size:11px; color:#004085; font-weight:bold;">TOTAL DEALERS</div>
+<div style="font-size:11px; color:#004085; font-weight:bold;">TOTAL FINANCIERS</div>
 <div style="font-size:22px; font-weight:bold; color:#0056b3; margin-top:5px;">{{ total_dealers }}</div>
 </div>
 <div style="flex:1; background:#e2f0d9; border:1px solid #c3e6cb; padding:15px; border-radius:8px; text-align:center;">
@@ -340,8 +346,8 @@ Collection for <b>{{ selected_date }}</b>: <span style="color:#28a745; font-weig
 </div>
 {% endif %}
 
-<h3 style="color:#333; font-size:15px; margin-bottom:8px;">Registered Dealers & Live Credit Balance</h3>
-<table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+<h3 style="color:#333; font-size:15px; margin-bottom:8px;">Registered Financiers & Live Credit Balance</h3>
+<table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left; margin-bottom:25px;">
 <thead>
 <tr style="background:#343a40; color:white;">
 <th style="padding:8px;">Mobile</th>
@@ -359,6 +365,32 @@ Collection for <b>{{ selected_date }}</b>: <span style="color:#28a745; font-weig
 <td style="padding:8px; text-align:center;">
 <a href="/admin/send-credits-quick?mobile={{ d.mobile }}" style="background:#ffc107; color:black; padding:4px 8px; border-radius:4px; text-decoration:none; font-weight:bold; font-size:11px;">+10 Credits (₹2,000)</a>
 </td>
+</tr>
+{% endfor %}
+</tbody>
+</table>
+
+<h3 style="color:#333; font-size:15px; margin-bottom:8px;">Detailed Vehicle Check Logs (Row by Row)</h3>
+<table style="width:100%; border-collapse:collapse; font-size:13px; text-align:left;">
+<thead>
+<tr style="background:#495057; color:white;">
+<th style="padding:8px;">Financier Mobile</th>
+<th style="padding:8px;">Vehicle Number</th>
+<th style="padding:8px;">Credits Left After Check</th>
+<th style="padding:8px;">Timestamp</th>
+</tr>
+</thead>
+<tbody>
+{% for log in logs %}
+<tr style="border-bottom:1px solid #dee2e6;">
+<td style="padding:8px; font-weight:bold;">{{ log.dealer_mobile }}</td>
+<td style="padding:8px; text-transform:uppercase; font-weight:bold; color:#0d6efd;">{{ log.vehicle_number }}</td>
+<td style="padding:8px; font-weight:bold;">{{ log.credits_left }}</td>
+<td style="padding:8px; color:#555;">{{ log.search_date }}</td>
+</tr>
+{% else %}
+<tr>
+<td colspan="4" style="padding:15px; text-align:center; color:#666;">No search logs available yet.</td>
 </tr>
 {% endfor %}
 </tbody>
@@ -384,7 +416,7 @@ def dealer_login():
             conn = get_db()
             dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (mobile,)).fetchone()
             if not dealer:
-                conn.execute('INSERT INTO dealers (mobile, name, credits, status, is_verified, bonus_claimed) VALUES (?, ?, 5, "Active", 0, 0)', (mobile, 'Dealer'))
+                conn.execute('INSERT INTO dealers (mobile, name, credits, status, is_verified, bonus_claimed) VALUES (?, ?, 2, "Active", 0, 0)', (mobile, 'Financier'))
                 conn.commit()
             conn.close()
 
@@ -419,7 +451,7 @@ def verify_otp():
             device_claimed = conn.execute('SELECT * FROM welcome_logs WHERE device_id = ?', (device_id,)).fetchone()
 
             if dealer and not dealer['bonus_claimed'] and not device_claimed:
-                conn.execute('UPDATE dealers SET credits = 5, bonus_claimed = 1, is_verified = 1 WHERE mobile = ?', (mobile,))
+                conn.execute('UPDATE dealers SET credits = 2, bonus_claimed = 1, is_verified = 1 WHERE mobile = ?', (mobile,))
                 conn.execute('INSERT INTO welcome_logs (device_id, mobile) VALUES (?, ?)', (device_id, mobile))
                 conn.commit()
             elif dealer and not dealer['is_verified']:
@@ -453,10 +485,15 @@ def dealer_dashboard():
         searched_num = vehicle_number
         if dealer and dealer['credits'] > 0:
             conn.execute('UPDATE dealers SET credits = credits - 1 WHERE mobile = ?', (dealer['mobile'],))
-            conn.execute('INSERT INTO club_logs (dealer_mobile, vehicle_number) VALUES (?, ?)', (dealer['mobile'], vehicle_number))
             conn.commit()
 
-            dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
+            updated_dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (session['dealer_mobile'],)).fetchone()
+            current_credits = updated_dealer['credits']
+
+            conn.execute('INSERT INTO club_logs (dealer_mobile, vehicle_number, credits_left) VALUES (?, ?, ?)', (dealer['mobile'], vehicle_number, current_credits))
+            conn.commit()
+
+            dealer = updated_dealer
             rc_data = fetch_rc_from_idspay(vehicle_number)
         else:
             msg = "Insufficient credits! Please recharge."
@@ -479,13 +516,16 @@ def admin_panel():
         vehicle_number = request.form.get('admin_vehicle_number', '').strip()
         searched_num = vehicle_number
         if vehicle_number:
-            conn.execute('INSERT INTO club_logs (dealer_mobile, vehicle_number) VALUES (?, ?)', (ADMIN_MOBILE, vehicle_number))
+            admin_dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (ADMIN_MOBILE,)).fetchone()
+            admin_credits = admin_dealer['credits'] if admin_dealer else 0
+            conn.execute('INSERT INTO club_logs (dealer_mobile, vehicle_number, credits_left) VALUES (?, ?, ?)', (ADMIN_MOBILE, vehicle_number, admin_credits))
             conn.commit()
             rc_data = fetch_rc_from_idspay(vehicle_number)
         else:
             msg = "Please enter a valid vehicle number."
 
     dealers = conn.execute('SELECT * FROM dealers').fetchall()
+    logs = conn.execute('SELECT * FROM club_logs ORDER BY search_date DESC').fetchall()
     total_dealers = len(dealers)
     total_searches = conn.execute('SELECT COUNT(*) FROM club_logs').fetchone()[0]
 
@@ -499,7 +539,7 @@ def admin_panel():
     date_revenue = date_rev_res if date_rev_res else 0
 
     conn.close()
-    return render_template_string(ADMIN_TEMPLATE, dealers=dealers, total_dealers=total_dealers, total_searches=total_searches, total_revenue=total_revenue, selected_date=selected_date, date_revenue=date_revenue, rc_data=rc_data, searched_num=searched_num, msg=msg)
+    return render_template_string(ADMIN_TEMPLATE, dealers=dealers, logs=logs, total_dealers=total_dealers, total_searches=total_searches, total_revenue=total_revenue, selected_date=selected_date, date_revenue=date_revenue, rc_data=rc_data, searched_num=searched_num, msg=msg)
 
 @app.route('/admin/send-custom-credits', methods=['POST'])
 def admin_send_custom_credits():
@@ -522,7 +562,7 @@ def admin_send_custom_credits():
         conn = get_db()
         dealer = conn.execute('SELECT * FROM dealers WHERE mobile = ?', (target_mobile,)).fetchone()
         if not dealer:
-            conn.execute('INSERT INTO dealers (mobile, name, credits, status, is_verified, bonus_claimed) VALUES (?, ?, ?, "Active", 1, 1)', (target_mobile, 'Dealer', credits))
+            conn.execute('INSERT INTO dealers (mobile, name, credits, status, is_verified, bonus_claimed) VALUES (?, ?, ?, "Active", 1, 1)', (target_mobile, 'Financier', credits))
         else:
             conn.execute('UPDATE dealers SET credits = credits + ? WHERE mobile = ?', (credits, target_mobile))
 
